@@ -1,0 +1,7 @@
+This project is an implementation of the bubble simulation presented in "A Practical Simulation of Dispersed Bubble Flow" by Kim, Song, and Ko.
+
+The framework requires GLUT be installed to run.
+
+To install GLUT:
+Download at: http://www.xmission.com/~nate/glut/glut-3.7.6-bin.zip
+Follow these instructions: http://homepage.cs.uiowa.edu/~cwyman/classes/common/howto/winGLUT.html
