@@ -1,3 +1,5 @@
+Github test
+
 Contained in this folder is everything you'll need to get started on the smoke simulation assignment.
 
 A working project is included for Visual Studio 2010. If you're using a different platform, just copy the source files from the SourceFiles folder in the Visual Studio project. Almost everything is cross-platform without modifications. I originally modified it to be cross-platform in order to work on it in Xcode on a Mac (including removing Boost and DevIL dependencies). You might need to change the OpenGL includes in open_gl_headers.h depending on your setup. The only dependency that you might not already have on your computer is GLUT. In case you don't have it, I've included the header file and Windows binaries in the GLUT folder.
