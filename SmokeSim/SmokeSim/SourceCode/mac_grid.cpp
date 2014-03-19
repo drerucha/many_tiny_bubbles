@@ -95,14 +95,50 @@ void MACGrid::initialize()
 void MACGrid::updateSources()
 {
     // TODO: Set initial values for density, temperature, and velocity.
+
+	FOR_EACH_CELL
+	{
+
+	}
+
 }
 
 void MACGrid::advectVelocity(double dt)
 {
-    // TODO: Calculate new velocities and store in target.
+    /*// TODO: Calculate new velocities and store in target.
 	target.mU = mU;
     target.mV = mV;
     target.mW = mW;
+    // Then save the result to our object.
+    mU = target.mU;
+    mV = target.mV;
+    mW = target.mW;*/
+
+	//vec3 velocity(mU, mV, mW);
+	vector<double> a = mU.data();
+	vector<double> b = mV.data();
+	vector<double> c = mW.data();
+
+	FOR_EACH_FACE
+	{
+		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
+		double velU = mU(i, j, k);
+		double velV = mV(i, j, k);
+		double velW = mW(i, j, k);
+
+		vec3 velocityGradient((mU(i+1, j, k) - mU(i, j, k))/ 1.0 / theCellSize, (mV(i, j+1, k) - mV(i, j, k))/ 1.0 / theCellSize, (mW(i, j, k+1) - mW(i, j, k))/ 1.0 / theCellSize);
+
+		velU += dt * -1 * Dot(velocity, velocityGradient);
+		velV += dt * -1 * Dot(velocity, velocityGradient);
+		velW += dt * -1 * Dot(velocity, velocityGradient);
+
+		target.mU(i, j, k) = velU;
+		target.mV(i, j, k) = velV;
+		target.mW(i, j, k) = velW;
+
+	}
+
+	
     // Then save the result to our object.
     mU = target.mU;
     mV = target.mV;
@@ -111,18 +147,38 @@ void MACGrid::advectVelocity(double dt)
 
 void MACGrid::advectTemperature(double dt)
 {
-    // TODO: Calculate new temp and store in target.
+    /*// TODO: Calculate new temp and store in target.
 	target.mT = mT;
     // Then save the result to our object.
-    mT = target.mT;
+    mT = target.mT;*/
+		vector<double> a = mT.data();
+	FOR_EACH_CELL
+	{
+		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
+		double temperature = mT(i, j, k);
+		vec3 tempGradient((mT(i+1, j, k) - mT(i-1, j, k))/ 2.0 / theCellSize, (mT(i, j+1, k) - mT(i, j-1, k))/ 2.0 / theCellSize, (mT(i, j, k+1) - mT(i, j, k-1)) / 2.0 / theCellSize);
+		temperature += dt * -1 * Dot(velocity, tempGradient);
+		target.mT(i,j,k) = temperature;
+	}
+	mT = target.mT;
 }
 
 void MACGrid::advectDensity(double dt)
 {
-    // TODO: Calculate new densitities and store in target.
+    /*// TODO: Calculate new densitities and store in target.
 	target.mD = mD;
     // Then save the result to our object.
-    mD = target.mD;
+    mD = target.mD;*/
+	vector<double> a = mD.data();
+	FOR_EACH_CELL
+	{
+		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
+		double density = mD(i, j, k);
+		vec3 densityGradient((mD(i+1, j, k) - mD(i-1, j, k))/ 2.0 / theCellSize, (mD(i, j+1, k) - mD(i, j-1, k))/ 2.0 / theCellSize, (mD(i, j, k+1) - mD(i, j, k-1)) / 2.0 / theCellSize);
+		density += dt * -1 * Dot(velocity, densityGradient);
+		target.mD(i,j,k) = density;
+	}
+	mD = target.mD;
 }
 
 void MACGrid::computeBouyancy(double dt)

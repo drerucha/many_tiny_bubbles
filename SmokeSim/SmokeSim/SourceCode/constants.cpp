@@ -7,9 +7,9 @@
 const int theMillisecondsPerFrame = 10;
 
 #ifdef _DEBUG
-const int theDim[3] = {4, 4, 1};
+const int theDim[3] = {2, 2, 1};
 #else
-const int theDim[3] = {12, 12, 4};
+const int theDim[3] = {12, 12, 4};//12, 12, 4
 #endif
 
 const double theCellSize = 0.5;
