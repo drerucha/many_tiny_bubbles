@@ -36,6 +36,10 @@ bool MACGrid::theDisplayVel = false;
       for(int j = 0; j < theDim[MACGrid::Y]+1; j++) \
          for(int i = 0; i < theDim[MACGrid::X]+1; i++) 
 
+#define UNIT_X vec3( 1.0f, 0.0f, 0.0f )
+#define UNIT_Y vec3( 0.0f, 1.0f, 0.0f )
+#define UNIT_Z vec3( 0.0f, 0.0f, 1.0f )
+
 
 
 
@@ -115,31 +119,49 @@ void MACGrid::advectVelocity(double dt)
     mW = target.mW;*/
 
 	//vec3 velocity(mU, mV, mW);
-	vector<double> a = mU.data();
-	vector<double> b = mV.data();
-	vector<double> c = mW.data();
+	//vector<double> a = mU.data();
+	//vector<double> b = mV.data();
+	//vector<double> c = mW.data();
 
-	FOR_EACH_FACE
-	{
-		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
-		double velU = mU(i, j, k);
-		double velV = mV(i, j, k);
-		double velW = mW(i, j, k);
+	// loops through every MacGrid face; defines i, j, k
+	FOR_EACH_FACE {
+		//// mU = GridDataX, mV = GridDataY, mW = GridDataZ
+		//vec3 current_velocity( mU( i, j, k ), mV( i, j, k ), mW( i, j, k ) );
+		//double velU = mU( i, j, k );
+		//double velV = mV( i, j, k );
+		//double velW = mW( i, j, k );
 
-		vec3 velocityGradient((mU(i+1, j, k) - mU(i, j, k))/ 1.0 / theCellSize, (mV(i, j+1, k) - mV(i, j, k))/ 1.0 / theCellSize, (mW(i, j, k+1) - mW(i, j, k))/ 1.0 / theCellSize);
+		//vec3 velocityGradient( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize,
+		//					   ( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize,
+		//					   ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
 
-		velU += dt * -1 * Dot(velocity, velocityGradient);
-		velV += dt * -1 * Dot(velocity, velocityGradient);
-		velW += dt * -1 * Dot(velocity, velocityGradient);
+		//velU += dt * -1.0f * Dot( current_velocity, velocityGradient );
+		//velV += dt * -1.0f * Dot( current_velocity, velocityGradient );
+		//velW += dt * -1.0f * Dot( current_velocity, velocityGradient );
 
-		target.mU(i, j, k) = velU;
-		target.mV(i, j, k) = velV;
-		target.mW(i, j, k) = velW;
+		//target.mU( i, j, k ) = velU;
+		//target.mV( i, j, k ) = velV;
+		//target.mW( i, j, k ) = velW;
 
+		// mU = GridDataX, mV = GridDataY, mW = GridDataZ
+		double velU = mU( i, j, k );
+		double velV = mV( i, j, k );
+		double velW = mW( i, j, k );
+
+		vec3 velocityGradient( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize,
+							   ( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize,
+							   ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
+
+		velU -= velU * dt * Dot( UNIT_X, velocityGradient );
+		velV -= velV * dt * Dot( UNIT_Y, velocityGradient );
+		velW -= velW * dt * Dot( UNIT_Z, velocityGradient );
+
+		target.mU( i, j, k ) = velU;
+		target.mV( i, j, k ) = velV;
+		target.mW( i, j, k ) = velW;
 	}
 
-	
-    // Then save the result to our object.
+    // save result to object
     mU = target.mU;
     mV = target.mV;
     mW = target.mW;
