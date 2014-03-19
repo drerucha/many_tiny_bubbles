@@ -11,5 +11,6 @@ SmokeSim/SmokeSim/Release/
 # file types to ignore when committing
 
 *.sdf
+*.opensdf
 *.suo
-*.user
+*.vcxproj.user
