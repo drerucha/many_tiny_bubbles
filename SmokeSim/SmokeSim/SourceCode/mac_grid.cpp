@@ -98,8 +98,20 @@ void MACGrid::updateSources()
 
 	FOR_EACH_CELL
 	{
-
+		mT(i, j, k) = 0.0;
+		mD(i, j, k) = 0.0;
 	}
+
+	FOR_EACH_FACE
+	{
+		mU(i, j, k) = 0.0;
+		mV(i, j, k) = 0.0;
+		mW(i, j, k) = 0.0;
+	}
+	mD(0, 0, 0) = 1.0;
+	//mU(0, 0, 0) = 1.0;
+	mV(0, 0, 0) = 1.0;
+	//mW(0, 0, 0) = 1.0;
 
 }
 
@@ -115,9 +127,9 @@ void MACGrid::advectVelocity(double dt)
     mW = target.mW;*/
 
 	//vec3 velocity(mU, mV, mW);
-	vector<double> a = mU.data();
-	vector<double> b = mV.data();
-	vector<double> c = mW.data();
+	//vector<double> a = mU.data();
+	//vector<double> b = mV.data();
+	//vector<double> c = mW.data();
 
 	FOR_EACH_FACE
 	{
@@ -151,14 +163,19 @@ void MACGrid::advectTemperature(double dt)
 	target.mT = mT;
     // Then save the result to our object.
     mT = target.mT;*/
-		vector<double> a = mT.data();
+		//vector<double> a = mT.data();
 	FOR_EACH_CELL
 	{
 		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
-		double temperature = mT(i, j, k);
-		vec3 tempGradient((mT(i+1, j, k) - mT(i-1, j, k))/ 2.0 / theCellSize, (mT(i, j+1, k) - mT(i, j-1, k))/ 2.0 / theCellSize, (mT(i, j, k+1) - mT(i, j, k-1)) / 2.0 / theCellSize);
-		temperature += dt * -1 * Dot(velocity, tempGradient);
-		target.mT(i,j,k) = temperature;
+		//double temperature = mT(i, j, k);
+		//vec3 tempGradient((mT(i+1, j, k) - mT(i-1, j, k)) / 2.0 / theCellSize, (mT(i, j+1, k) - mT(i, j-1, k))/ 2.0 / theCellSize, (mT(i, j, k+1) - mT(i, j, k-1)) / 2.0 / theCellSize);
+		//temperature += dt * -1 * Dot(velocity, tempGradient);
+		vec3 pos = getCenter(i, j, k);
+		pos += -1 * dt * velocity;
+		//temperature = getTemperature(pos);
+
+
+		target.mT(i,j,k) = getTemperature(pos);
 	}
 	mT = target.mT;
 }
@@ -169,24 +186,41 @@ void MACGrid::advectDensity(double dt)
 	target.mD = mD;
     // Then save the result to our object.
     mD = target.mD;*/
-	vector<double> a = mD.data();
+	//vector<double> a = mD.data();
 	FOR_EACH_CELL
 	{
 		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
-		double density = mD(i, j, k);
-		vec3 densityGradient((mD(i+1, j, k) - mD(i-1, j, k))/ 2.0 / theCellSize, (mD(i, j+1, k) - mD(i, j-1, k))/ 2.0 / theCellSize, (mD(i, j, k+1) - mD(i, j, k-1)) / 2.0 / theCellSize);
-		density += dt * -1 * Dot(velocity, densityGradient);
-		target.mD(i,j,k) = density;
+		//double density = mD(i, j, k);
+		//vec3 densityGradient((mD(i+1, j, k) - mD(i-1, j, k))/ 2.0 / theCellSize, (mD(i, j+1, k) - mD(i, j-1, k))/ 2.0 / theCellSize, (mD(i, j, k+1) - mD(i, j, k-1)) / 2.0 / theCellSize);
+		//density += dt * -1 * Dot(velocity, densityGradient);
+		vec3 pos = getCenter(i, j, k);
+		pos += -1 * dt * velocity;
+		//density = getDensity(pos);
+
+		target.mD(i,j,k) = getDensity(pos);
 	}
 	mD = target.mD;
 }
 
 void MACGrid::computeBouyancy(double dt)
 {
+	/*
 	// TODO: Calculate bouyancy and store in target.
 	target.mV = mV;
    // Then save the result to our object.
-   mV = target.mV;
+   mV = target.mV;*/
+
+	double alpha = 1.0;
+	double beta = 1.0;
+	double concentration = 1.0;//TODO
+	FOR_EACH_CELL
+	{
+		//vec3 buoyancyForce(0, -1 * alpha * concentration + beta * (mT(i, j, k) - 270), 0);
+		target.mV(i, j, k) = mV(i, j, k) + -1 * alpha * concentration + beta * (mT(i, j, k) - 270);
+	}
+
+	target.mV = mV;
+	mV = target.mV;
 }
 
 void MACGrid::computeVorticityConfinement(double dt)
@@ -209,7 +243,7 @@ void MACGrid::addExternalForces(double dt)
 }
 
 void MACGrid::project(double dt)
-{
+{/*
 	// TODO: Solve Ap = d for pressure.
 	// 1. Construct d
 	// 2. Construct A
@@ -224,7 +258,31 @@ void MACGrid::project(double dt)
 	mU = target.mU;
 	mV = target.mV;
 	mW = target.mW;
-	// IMPLEMENT THIS AS A SANITY CHECK: assert (checkDivergence());
+	// IMPLEMENT THIS AS A SANITY CHECK: assert (checkDivergence());*/
+
+	double constant = -1 * theCellSize * theCellSize / dt;
+	GridData d;
+	GridDataMatrix A;
+
+	FOR_EACH_FACE
+	{
+		d(i, j, k) = constant * ( (mU(i+1, j, k) - mU(i, j, k)) / theCellSize + 
+			                      (mV(i, j+1, k) - mV(i, j, k)) / theCellSize +
+								  (mW(i, j, k+1) - mW(i, j, k)) / theCellSize); 
+		//A.plusI(i,j,k)
+
+	}
+
+	target.mP = mP;
+	target.mU = mU;
+	target.mV = mV;
+	target.mW = mW;
+	// Then save the result to our object
+	mP = target.mP;
+	mU = target.mU;
+	mV = target.mV;
+	mW = target.mW;
+
 }
 
 vec3 MACGrid::getVelocity(const vec3& pt)
