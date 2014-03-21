@@ -100,21 +100,11 @@ void MACGrid::updateSources()
 {
     // TODO: Set initial values for density, temperature, and velocity.
 
-	FOR_EACH_CELL
-	{
-		mT(i, j, k) = 0.0;
-		mD(i, j, k) = 0.0;
-	}
-
-	FOR_EACH_FACE
-	{
-		mU(i, j, k) = 0.0;
-		mV(i, j, k) = 0.0;
-		mW(i, j, k) = 0.0;
-	}
-	mD(0, 0, 0) = 1.0;
+	mP( 0, 0, 0 ) = 1.0;
+	mT( 0, 0 ,0 ) = 280;
+	mD( 0, 0, 0 ) = 1.0;
 	//mU(0, 0, 0) = 1.0;
-	mV(0, 0, 0) = 1.0;
+	mV( 0, 0, 0 ) = 1.0;
 	//mW(0, 0, 0) = 1.0;
 
 }
@@ -314,18 +304,19 @@ void MACGrid::project(double dt)
 
 
 		if(borderCounts == 0)
-			A.diag( i, j, k ) = 6.0f;
+			A.diag( i, j, k ) = 6;
 		if(borderCounts == 1)
-			A.diag( i, j, k ) = 5.0f;
+			A.diag( i, j, k ) = 5;
 		if(borderCounts == 2)
-			A.diag( i, j, k ) = 4.0f;
+			A.diag( i, j, k ) = 4;
 		if(borderCounts == 3)
-			A.diag( i, j, k ) = 3.0f;
+			A.diag( i, j, k ) = 3;
 		if(borderCounts == 4)
-			A.diag( i, j, k ) = 2.0f;
+			A.diag( i, j, k ) = 2;
 		if(borderCounts == 5)
-			A.diag( i, j, k ) = 1.0f;
-
+			A.diag( i, j, k ) = 1;
+		if(borderCounts == 6)
+			A.diag( i, j, k ) = 0;
 
 
 		if(i+2 > theDim[MACGrid::X])
@@ -371,9 +362,9 @@ void MACGrid::project(double dt)
 		else 
 			pressureKMinus1 = target.mP( i, j, k-1 );
 
-		velU -= velU * dt * (target.mP( i, j, k ) - pressureIMinus1) / theCellSize;
-		velV -= velV * dt * (target.mP( i, j, k ) - pressureJMinus1) / theCellSize;
-		velW -= velW * dt * (target.mP( i, j, k ) - pressureKMinus1) / theCellSize;
+		velU -= dt / mD( i, j, k ) * (target.mP( i, j, k ) - pressureIMinus1) / theCellSize;
+		velV -= dt / mD( i, j, k ) * (target.mP( i, j, k ) - pressureJMinus1) / theCellSize;
+		velW -= dt / mD( i, j, k ) * (target.mP( i, j, k ) - pressureKMinus1) / theCellSize;
 
 		target.mU( i, j, k ) = velU;
 		target.mV( i, j, k ) = velV;
@@ -386,7 +377,6 @@ void MACGrid::project(double dt)
 	mU = target.mU;
 	mV = target.mV;
 	mW = target.mW;
-
 }
 
 vec3 MACGrid::getVelocity(const vec3& pt)
