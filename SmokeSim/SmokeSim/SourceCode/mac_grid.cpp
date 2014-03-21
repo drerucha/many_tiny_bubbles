@@ -164,14 +164,13 @@ void MACGrid::advectVelocity(double dt)
 							   ( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize,
 							   ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
 
-		velU -= velU * dt * Dot( UNIT_X, velocityGradient );
-		velV -= velV * dt * Dot( UNIT_Y, velocityGradient );
-		velW -= velW * dt * Dot( UNIT_Z, velocityGradient );
+		velU = velU + ( dt * -1.0f * velU * Dot( UNIT_X, velocityGradient ) );
+		velV = velV + ( dt * -1.0f * velV * Dot( UNIT_Y, velocityGradient ) );
+		velW = velW + ( dt * -1.0f * velW * Dot( UNIT_Z, velocityGradient ) );
 
 		target.mU( i, j, k ) = velU;
 		target.mV( i, j, k ) = velV;
 		target.mW( i, j, k ) = velW;
->>>>>>> 0d32237642eeb6bb847ab1810555ab45bce7046a
 	}
 
     // save result to object
@@ -283,15 +282,15 @@ void MACGrid::project(double dt)
 	mW = target.mW;
 	// IMPLEMENT THIS AS A SANITY CHECK: assert (checkDivergence());*/
 
-	double constant = -1 * theCellSize * theCellSize / dt;
+	double constant = -1.0f * theCellSize * theCellSize / dt;
 	GridData d;
+	d.initialize();
 	GridDataMatrix A;
 
-	FOR_EACH_FACE
-	{
-		d(i, j, k) = constant * ( (mU(i+1, j, k) - mU(i, j, k)) / theCellSize + 
-			                      (mV(i, j+1, k) - mV(i, j, k)) / theCellSize +
-								  (mW(i, j, k+1) - mW(i, j, k)) / theCellSize); 
+	FOR_EACH_CELL {
+		d( i, j, k ) = constant * mD( i, j, k ) * ( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize + 
+													( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize +
+													( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize ); 
 		//A.plusI(i,j,k)
 
 	}
