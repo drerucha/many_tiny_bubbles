@@ -283,22 +283,104 @@ void MACGrid::project(double dt)
 	// IMPLEMENT THIS AS A SANITY CHECK: assert (checkDivergence());*/
 
 	double constant = -1.0f * theCellSize * theCellSize / dt;
-	GridData d;
-	d.initialize();
+	GridData d, p;
 	GridDataMatrix A;
+	d.initialize(0.0f);
+	p.initialize(0.0f);
 
-	FOR_EACH_CELL {
-		d( i, j, k ) = constant * mD( i, j, k ) * ( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize + 
-													( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize +
-													( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize ); 
-		//A.plusI(i,j,k)
+	FOR_EACH_CELL
+	{
+		d(i, j, k) = constant * mD(i, j, k) * ( (mU(i+1, j, k) - mU(i, j, k)) / theCellSize + 
+			                      (mV(i, j+1, k) - mV(i, j, k)) / theCellSize +
+								  (mW(i, j, k+1) - mW(i, j, k)) / theCellSize); 
 
+
+		
+		int borderCounts = 0;
+
+		if(i - 1 < 0)
+			borderCounts++;
+		if(i + 2 > theDim[MACGrid::X])
+			borderCounts++;
+		if(j - 1 < 0)
+			borderCounts++;
+		if(j + 2 > theDim[MACGrid::Y])
+			borderCounts++;
+		if(k - 1 < 0)
+			borderCounts++;
+		if(k + 2 > theDim[MACGrid::Z])
+			borderCounts++;
+
+
+
+		if(borderCounts == 0)
+			A.diag( i, j, k ) = 6.0f;
+		if(borderCounts == 1)
+			A.diag( i, j, k ) = 5.0f;
+		if(borderCounts == 2)
+			A.diag( i, j, k ) = 4.0f;
+		if(borderCounts == 3)
+			A.diag( i, j, k ) = 3.0f;
+		if(borderCounts == 4)
+			A.diag( i, j, k ) = 2.0f;
+		if(borderCounts == 5)
+			A.diag( i, j, k ) = 1.0f;
+
+
+
+		if(i+2 > theDim[MACGrid::X])
+			A.plusI( i, j, k ) = 0.0f;
+		else
+			A.plusI( i, j, k ) = -1.0f;
+
+		if(j+2 > theDim[MACGrid::Y])
+			A.plusJ( i, j, k ) = 0.0f;
+		else
+			A.plusJ( i, j, k ) = -1.0f;
+
+		if(k+2 > theDim[MACGrid::Z])
+			A.plusK( i, j, k ) = 0.0f;
+		else
+			A.plusK( i, j, k ) = -1.0f;
 	}
 
-	target.mP = mP;
-	target.mU = mU;
-	target.mV = mV;
-	target.mW = mW;
+	conjugateGradient(A, p, d, 10, 0.001);
+
+	target.mP = p;
+	
+	FOR_EACH_CELL
+	{
+		double velU = mU( i, j, k );
+		double velV = mV( i, j, k );
+		double velW = mW( i, j, k );
+
+		double pressureIMinus1, pressureJMinus1, pressureKMinus1;
+
+		if(i - 1 < 0)
+			pressureIMinus1 = 0.0f;
+		else
+			pressureIMinus1 = target.mP( i-1, j, k );
+
+		if(j - 1 < 0)
+			pressureJMinus1 = 0.0f;
+		else
+			pressureJMinus1 = target.mP( i, j-1, k );
+
+		if(k - 1 < 0)
+			pressureKMinus1 = 0.0f;
+		else 
+			pressureKMinus1 = target.mP( i, j, k-1 );
+
+		velU -= velU * dt * (target.mP( i, j, k ) - pressureIMinus1) / theCellSize;
+		velV -= velV * dt * (target.mP( i, j, k ) - pressureJMinus1) / theCellSize;
+		velW -= velW * dt * (target.mP( i, j, k ) - pressureKMinus1) / theCellSize;
+
+		target.mU( i, j, k ) = velU;
+		target.mV( i, j, k ) = velV;
+		target.mW( i, j, k ) = velW;
+	}
+	
+	
 	// Then save the result to our object
 	mP = target.mP;
 	mU = target.mU;
