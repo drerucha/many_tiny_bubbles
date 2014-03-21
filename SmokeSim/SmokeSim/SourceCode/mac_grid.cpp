@@ -111,53 +111,27 @@ void MACGrid::updateSources()
 
 void MACGrid::advectVelocity(double dt)
 {
-    /*// TODO: Calculate new velocities and store in target.
-	target.mU = mU;
-    target.mV = mV;
-    target.mW = mW;
-    // Then save the result to our object.
-    mU = target.mU;
-    mV = target.mV;
-    mW = target.mW;*/
+    // TODO: compute new velocities and store in target
 
-	//vec3 velocity(mU, mV, mW);
-	//vector<double> a = mU.data();
-	//vector<double> b = mV.data();
-	//vector<double> c = mW.data();
 
 	// loops through every MacGrid face; defines i, j, k
 	FOR_EACH_FACE {
-		//// mU = GridDataX, mV = GridDataY, mW = GridDataZ
-		//vec3 current_velocity( mU( i, j, k ), mV( i, j, k ), mW( i, j, k ) );
-		//double velU = mU( i, j, k );
-		//double velV = mV( i, j, k );
-		//double velW = mW( i, j, k );
-
-		//vec3 velocityGradient( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize,
-		//					   ( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize,
-		//					   ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
-
-		//velU += dt * -1.0f * Dot( current_velocity, velocityGradient );
-		//velV += dt * -1.0f * Dot( current_velocity, velocityGradient );
-		//velW += dt * -1.0f * Dot( current_velocity, velocityGradient );
-
-		//target.mU( i, j, k ) = velU;
-		//target.mV( i, j, k ) = velV;
-		//target.mW( i, j, k ) = velW;
-
 		// mU = GridDataX, mV = GridDataY, mW = GridDataZ
 		double velU = mU( i, j, k );
 		double velV = mV( i, j, k );
 		double velW = mW( i, j, k );
 
+		// compute velocity gradient - rate of change in each component direction
 		vec3 velocityGradient( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize,
 							   ( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize,
 							   ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
 
-		velU = velU + ( dt * -1.0f * velU * Dot( UNIT_X, velocityGradient ) );
-		velV = velV + ( dt * -1.0f * velV * Dot( UNIT_Y, velocityGradient ) );
-		velW = velW + ( dt * -1.0f * velW * Dot( UNIT_Z, velocityGradient ) );
+		// solve for advection
+		velU += -1.0f * dt * velU * Dot( UNIT_X, velocityGradient );
+		velV += -1.0f * dt * velV * Dot( UNIT_Y, velocityGradient );
+		velW += -1.0f * dt * velW * Dot( UNIT_Z, velocityGradient );
 
+		// store in target
 		target.mU( i, j, k ) = velU;
 		target.mV( i, j, k ) = velV;
 		target.mW( i, j, k ) = velW;
@@ -254,125 +228,146 @@ void MACGrid::addExternalForces(double dt)
    computeVorticityConfinement(dt);
 }
 
-void MACGrid::project(double dt)
-{/*
-	// TODO: Solve Ap = d for pressure.
-	// 1. Construct d
-	// 2. Construct A
-	// 3. Solve for p
-	// Subtract pressure from our velocity and save in target.
-	target.mP = mP;
-	target.mU = mU;
-	target.mV = mV;
-	target.mW = mW;
-	// Then save the result to our object
-	mP = target.mP;
-	mU = target.mU;
-	mV = target.mV;
-	mW = target.mW;
-	// IMPLEMENT THIS AS A SANITY CHECK: assert (checkDivergence());*/
+void MACGrid::project( double dt )
+{
+	// TODO: solve Ap = d for pressure
+
+	// TODO: IMPLEMENT assert( checkDivergence() ) AS A SANITY CHECK
+
+
+	////////////////////////////////////////////////////
+	// solve for pressure
+	////////////////////////////////////////////////////
 
 	double constant = -1.0f * theCellSize * theCellSize / dt;
-	GridData d, p;
+
+	// pressure coefficient matrix
 	GridDataMatrix A;
-	d.initialize(0.0f);
-	p.initialize(0.0f);
 
-	FOR_EACH_CELL
-	{
-		d(i, j, k) = constant * mD(i, j, k) * ( (mU(i+1, j, k) - mU(i, j, k)) / theCellSize + 
-			                      (mV(i, j+1, k) - mV(i, j, k)) / theCellSize +
-								  (mW(i, j, k+1) - mW(i, j, k)) / theCellSize); 
+	// d is divergence vector; p is pressure vector
+	GridData d, p;
+	d.initialize( 0.0f );
+	p.initialize( 0.0f );
 
+	FOR_EACH_CELL {
+		// fill divergence vector - ( constant * density * velocity gradient )
+		d( i, j, k ) = constant * mD( i, j, k ) * ( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize +
+													( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize +
+													( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
 
-		
-		int borderCounts = 0;
+		int num_neighbors = 6;
+		bool has_neighbor_plus_x = true, has_neighbor_plus_y = true, has_neighbor_plus_z = true;
 
-		if(i - 1 < 0)
-			borderCounts++;
-		if(i + 2 > theDim[MACGrid::X])
-			borderCounts++;
-		if(j - 1 < 0)
-			borderCounts++;
-		if(j + 2 > theDim[MACGrid::Y])
-			borderCounts++;
-		if(k - 1 < 0)
-			borderCounts++;
-		if(k + 2 > theDim[MACGrid::Z])
-			borderCounts++;
+		// count neighbors, and determine whether neighbors exist along positive directions
+		if ( i <= 0 ) {
+			--num_neighbors;
+		}
+		if ( j <= 0 ) {
+			--num_neighbors;
+		}
+		if ( k <= 0 ) {
+			--num_neighbors;
+		}
+		if ( i+1 >= theDim[MACGrid::X] ) {
+			--num_neighbors;
+			has_neighbor_plus_x = false;
+		}
+		if ( j+1 >= theDim[MACGrid::Y] ) {
+			--num_neighbors;
+			has_neighbor_plus_y = false;
+		}
+		if ( k+1 >= theDim[MACGrid::Z] ) {
+			--num_neighbors;
+			has_neighbor_plus_z = false;
+		}
 
+		// set A.diag - number of neighbors the current cell has
+		A.diag( i, j, k ) = num_neighbors;
 
-
-		if(borderCounts == 0)
-			A.diag( i, j, k ) = 6;
-		if(borderCounts == 1)
-			A.diag( i, j, k ) = 5;
-		if(borderCounts == 2)
-			A.diag( i, j, k ) = 4;
-		if(borderCounts == 3)
-			A.diag( i, j, k ) = 3;
-		if(borderCounts == 4)
-			A.diag( i, j, k ) = 2;
-		if(borderCounts == 5)
-			A.diag( i, j, k ) = 1;
-		if(borderCounts == 6)
-			A.diag( i, j, k ) = 0;
-
-
-		if(i+2 > theDim[MACGrid::X])
-			A.plusI( i, j, k ) = 0.0f;
-		else
+		// set A.plusI - neighbor cell in positive x direction
+		if ( has_neighbor_plus_x ) {
 			A.plusI( i, j, k ) = -1.0f;
+		}
+		else {
+			A.plusI( i, j, k ) = 0.0f;
+		}
 
-		if(j+2 > theDim[MACGrid::Y])
-			A.plusJ( i, j, k ) = 0.0f;
-		else
+		// set A.plusJ - neighbor cell in positive y direction
+		if ( has_neighbor_plus_y ) {
 			A.plusJ( i, j, k ) = -1.0f;
+		}
+		else {
+			A.plusJ( i, j, k ) = 0.0f;
+		}
 
-		if(k+2 > theDim[MACGrid::Z])
-			A.plusK( i, j, k ) = 0.0f;
-		else
+		// set A.plusK - neighbor cell in positive z direction
+		if ( has_neighbor_plus_z ) {
 			A.plusK( i, j, k ) = -1.0f;
+		}
+		else {
+			A.plusK( i, j, k ) = 0.0f;
+		}
 	}
 
-	conjugateGradient(A, p, d, 10, 0.001);
+	// solve pressure vector by solving system of linear equations
+	int max_num_iterations = 10;
+	double tolerance = 0.001f;
+	conjugateGradient( A, p, d, max_num_iterations, tolerance );
 
+	// store in target
 	target.mP = p;
 	
-	FOR_EACH_CELL
-	{
+
+	////////////////////////////////////////////////////
+	// apply computed pressures to velocity field
+	////////////////////////////////////////////////////
+
+	FOR_EACH_CELL {
 		double velU = mU( i, j, k );
 		double velV = mV( i, j, k );
 		double velW = mW( i, j, k );
 
-		double pressureIMinus1, pressureJMinus1, pressureKMinus1;
+		double current_pressure = target.mP( i, j, k );
 
-		if(i - 1 < 0)
-			pressureIMinus1 = 0.0f;
-		else
-			pressureIMinus1 = target.mP( i-1, j, k );
+		// to check boundary conditions
+		double pressure_i_minus_1, pressure_j_minus_1, pressure_k_minus_1;
 
-		if(j - 1 < 0)
-			pressureJMinus1 = 0.0f;
-		else
-			pressureJMinus1 = target.mP( i, j-1, k );
+		// set pressure_i_minus_1
+		if ( i-1 < 0 ) {
+			pressure_i_minus_1 = 0.0f;
+		}
+		else {
+			pressure_i_minus_1 = target.mP( i-1, j, k );
+		}
 
-		if(k - 1 < 0)
-			pressureKMinus1 = 0.0f;
-		else 
-			pressureKMinus1 = target.mP( i, j, k-1 );
+		// set pressure_j_minus_1
+		if ( j-1 < 0 ) {
+			pressure_j_minus_1 = 0.0f;
+		}
+		else {
+			pressure_j_minus_1 = target.mP( i, j-1, k );
+		}
 
-		velU -= dt / mD( i, j, k ) * (target.mP( i, j, k ) - pressureIMinus1) / theCellSize;
-		velV -= dt / mD( i, j, k ) * (target.mP( i, j, k ) - pressureJMinus1) / theCellSize;
-		velW -= dt / mD( i, j, k ) * (target.mP( i, j, k ) - pressureKMinus1) / theCellSize;
+		// set pressure_k_minus_1
+		if ( k-1 < 0 ) {
+			pressure_k_minus_1 = 0.0f;
+		}
+		else {
+			pressure_k_minus_1 = target.mP( i, j, k-1 );
+		}
 
+		// apply computed pressures to velocity field
+		velU -= dt * ( 1.0f / mD( i, j, k ) ) * ( ( current_pressure - pressure_i_minus_1 ) / theCellSize );
+		velV -= dt * ( 1.0f / mD( i, j, k ) ) * ( ( current_pressure - pressure_j_minus_1 ) / theCellSize );
+		velW -= dt * ( 1.0f / mD( i, j, k ) ) * ( ( current_pressure - pressure_k_minus_1 ) / theCellSize );
+
+		// store in target
 		target.mU( i, j, k ) = velU;
 		target.mV( i, j, k ) = velV;
 		target.mW( i, j, k ) = velW;
 	}
 	
-	
-	// Then save the result to our object
+	// save result to object
 	mP = target.mP;
 	mU = target.mU;
 	mV = target.mV;
