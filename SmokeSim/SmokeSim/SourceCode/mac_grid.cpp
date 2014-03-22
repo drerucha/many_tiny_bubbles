@@ -101,12 +101,28 @@ void MACGrid::updateSources()
     // TODO: Set initial values for density, temperature, and velocity.
 
 	//mP( 0, 0, 0 ) = 1.0;
-	mT( 0, 0 ,0 ) = 280;
-	mD( 0, 0, 0 ) = 1.0;
+	mT( 0, 1 ,0 ) = 280;
+	mD( 0, 1, 0 ) = 1.0;
 	//mU(0, 0, 0) = 1.0;
 	mV( 0, 1, 0 ) = 1.0;
 	//mW(0, 0, 0) = 1.0;
 
+
+	//mD( 0, 0, 0 ) = 1.0;
+	//mD( 1, 0, 0 ) = 2;
+
+	//mD( 0, 1, 0 ) = 3;
+	//mD( 1, 1, 0 ) = 4;
+
+	//mD( 0, 2, 0 ) = 5;
+	//mD( 1, 2, 0 ) = 6;
+
+	//mD( 0, 3, 0 ) = 7;
+	//mD( 1, 3, 0 ) = 8;
+
+
+	//mD( 1, 4, 0 ) = 14;
+	//mD( 2, 4, 0 ) = 15;
 }
 
 void MACGrid::advectVelocity(double dt)
@@ -139,6 +155,7 @@ void MACGrid::advectVelocity(double dt)
 		velV = getVelocityY(grid_Y_Bottom_Border_Pos - vec3(0, dt * velV, 0));
 		velW = getVelocityZ(grid_Z_Bottom_Border_Pos - vec3(0, 0, dt * velW));
 
+
 		// store in target
 		target.mU( i, j, k ) = velU;
 		target.mV( i, j, k ) = velV;
@@ -161,13 +178,9 @@ void MACGrid::advectTemperature(double dt)
 	FOR_EACH_CELL
 	{
 		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
-		//double temperature = mT(i, j, k);
-		//vec3 tempGradient((mT(i+1, j, k) - mT(i-1, j, k)) / 2.0 / theCellSize, (mT(i, j+1, k) - mT(i, j-1, k))/ 2.0 / theCellSize, (mT(i, j, k+1) - mT(i, j, k-1)) / 2.0 / theCellSize);
-		//temperature += dt * -1 * Dot(velocity, tempGradient);
+
 		vec3 pos = getCenter(i, j, k);
 		pos += -1 * dt * velocity;
-		//temperature = getTemperature(pos);
-
 
 		target.mT(i,j,k) = getTemperature(pos);
 	}
@@ -204,16 +217,22 @@ void MACGrid::computeBouyancy(double dt)
    // Then save the result to our object.
    mV = target.mV;*/
 
-	double alpha = 1.0;
-	double beta = 1.0;
+	double alpha = 0.1;
+	double beta = 0.01;
 	double concentration = 1.0;//TODO
 	FOR_EACH_CELL
 	{
+		//double deltaTemp = ;
+		
+
+
 		//vec3 buoyancyForce(0, -1 * alpha * concentration + beta * (mT(i, j, k) - 270), 0);
-		target.mV(i, j, k) = mV(i, j, k) + -1 * alpha * concentration + beta * (mT(i, j, k) - 270);
+
+		if(j != 0)
+			target.mV( i, j, k ) = mV( i, j, k ) + -1 * alpha * mD( i, j, k ) + beta * ((mT( i, j, k ) + mT( i, j-1, k )) / 2.0f - 270);
 	}
 
-	target.mV = mV;
+	//target.mV = mV;
 	mV = target.mV;
 }
 
@@ -318,8 +337,8 @@ void MACGrid::project( double dt )
 	}
 
 	// solve pressure vector by solving system of linear equations
-	int max_num_iterations = 10;
-	double tolerance = 0.001f;
+	int max_num_iterations = 100;
+	double tolerance = 0.00001f;
 	conjugateGradient( A, p, d, max_num_iterations, tolerance );
 
 	// store in target
@@ -397,7 +416,7 @@ void MACGrid::project( double dt )
 	mV = target.mV;
 	mW = target.mW;
 
-		FOR_EACH_CELL
+	FOR_EACH_CELL
 	{
 		double sum = (mU(i+1,j,k) - mU(i,j,k)) + 
 					 (mV(i,j+1,k) - mV(i,j,k)) +
