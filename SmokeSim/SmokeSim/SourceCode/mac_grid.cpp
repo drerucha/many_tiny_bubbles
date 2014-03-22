@@ -172,42 +172,36 @@ void MACGrid::advectVelocity(double dt)
     mW = target.mW;
 }
 
-void MACGrid::advectTemperature(double dt)
+void MACGrid::advectTemperature( double dt )
 {
-    /*// TODO: Calculate new temp and store in target.
-	target.mT = mT;
-    // Then save the result to our object.
-    mT = target.mT;*/
-		//vector<double> a = mT.data();
-	FOR_EACH_CELL
-	{
-		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
+    // TODO: calculate new temp and store in target
 
-		vec3 pos = getCenter(i, j, k);
-		pos += -1 * dt * velocity;
 
-		target.mT(i,j,k) = getTemperature(pos);
+	FOR_EACH_CELL {
+		// velocity at cell center
+		vec3 velocity( mU( i, j, k ), mV( i, j, k ), mW( i, j, k ) );
+
+		// trace back particle position using known velocity
+		vec3 pos = getCenter( i, j, k );
+		pos -= dt * velocity;
+
+		// interpolate temperature for passed-in position, and store in target
+		target.mT( i,j,k ) = getTemperature( pos );
 	}
+
+	// save result to object
 	mT = target.mT;
 }
 
-void MACGrid::advectDensity(double dt)
+void MACGrid::advectDensity( double dt )
 {
-    /*// TODO: Calculate new densitities and store in target.
-	target.mD = mD;
-    // Then save the result to our object.
-    mD = target.mD;*/
-	//vector<double> a = mD.data();
-	FOR_EACH_CELL
-	{
-		vec3 velocity(mU(i, j, k), mV(i, j, k), mW(i, j, k));
-		//double density = mD(i, j, k);
-		//vec3 densityGradient((mD(i+1, j, k) - mD(i-1, j, k))/ 2.0 / theCellSize, (mD(i, j+1, k) - mD(i, j-1, k))/ 2.0 / theCellSize, (mD(i, j, k+1) - mD(i, j, k-1)) / 2.0 / theCellSize);
-		//density += dt * -1 * Dot(velocity, densityGradient);
-		vec3 pos = getCenter(i, j, k);
-		pos += -1 * dt * velocity;
-		//density = getDensity(pos);
+    // TODO: calculate new densitities and store in target
 
+	// use an identical trace back method to the one used in MACGrid::advectTemperature()
+	FOR_EACH_CELL {
+		vec3 velocity( mU( i, j, k ), mV( i, j, k ), mW( i, j, k ) );
+		vec3 pos = getCenter(i, j, k);
+		pos -= dt * velocity;
 		target.mD(i,j,k) = getDensity(pos);
 	}
 	mD = target.mD;
@@ -215,25 +209,20 @@ void MACGrid::advectDensity(double dt)
 
 void MACGrid::computeBouyancy(double dt)
 {
-	/*
-	// TODO: Calculate bouyancy and store in target.
-	target.mV = mV;
-   // Then save the result to our object.
-   mV = target.mV;*/
+	// TODO: calculate bouyancy and store in target
+
 
 	double alpha = 0.1;
 	double beta = 0.01;
-	double concentration = 1.0;//TODO
-	FOR_EACH_CELL
-	{
+	double concentration = 1.0; // TODO
+	FOR_EACH_CELL {
 		//double deltaTemp = ;
 		
-
-
 		//vec3 buoyancyForce(0, -1 * alpha * concentration + beta * (mT(i, j, k) - 270), 0);
 
-		if(j != 0)
-			target.mV( i, j, k ) = mV( i, j, k ) + -1 * alpha * mD( i, j, k ) + beta * ((mT( i, j, k ) + mT( i, j-1, k )) / 2.0f - 270);
+		if ( j != 0 ) {
+			target.mV( i, j, k ) = mV( i, j, k ) + -1.0f * alpha * mD( i, j, k ) + beta * ( ( mT( i, j, k ) + mT( i, j-1, k ) ) / 2.0f - 270.0f );
+		}
 	}
 
 	//target.mV = mV;
@@ -410,7 +399,8 @@ void MACGrid::project( double dt )
 			velW -= dt * ( 1.0f / FLUID_DENSITY ) * ( ( target.mP( i, j, k ) - pressure_k_minus_1 ) / theCellSize );
 		}
 
-		// store in target
+		// store in target with additional container boundary checking
+		// ex: for a 2x2 matrix, the j value for mU can be only 0 or 1, but j can have values of 0, 1, or 2 for a 2x2 matrix
 		if ( j < theDim[MACGrid::Y] && k < theDim[MACGrid::Z] ) {
 			target.mU( i, j, k ) = velU;
 		}
