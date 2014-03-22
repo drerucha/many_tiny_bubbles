@@ -41,9 +41,7 @@ bool MACGrid::theDisplayVel = false;
 #define UNIT_Z vec3( 0.0f, 0.0f, 1.0f )
 
 const double FLUID_DENSITY = 1.0f;
-
-
-
+const double INITIAL_TEMPERATURE = 260.0f;
 
 
 MACGrid::MACGrid()
@@ -88,7 +86,7 @@ void MACGrid::reset()
    mW.initialize();
    mP.initialize();
    mD.initialize();
-   mT.initialize(0.0);
+   mT.initialize( INITIAL_TEMPERATURE );
 
    setUpAMatrix();
 }
@@ -103,11 +101,13 @@ void MACGrid::updateSources()
     // TODO: set initial values for density, temperature, and velocity
 
 	//mP( 0, 0, 0 ) = 1.0;
-	mT( 0, 1 ,0 ) = 280;
-	mD( 0, 1, 0 ) = 1.0;
+	mT( 0, 0 ,0 ) = 280.0f;
+	mD( 0, 0, 0 ) = 1.0f;
 	//mU(0, 0, 0) = 1.0;
-	mV( 0, 1, 0 ) = 1.0;
+	mV( 0, 1, 0 ) = 1.0f;
 	//mW(0, 0, 0) = 1.0;
+
+	mU( 1, 0, 0 ) = 1.0f;
 
 
 	//mD( 0, 0, 0 ) = 1.0;
@@ -131,6 +131,8 @@ void MACGrid::advectVelocity(double dt)
 {
     // TODO: compute new velocities and store in target
 
+	// TODO: significant boundary checking
+
 
 	// loops through every MacGrid face; defines i, j, k
 	FOR_EACH_FACE {
@@ -139,11 +141,11 @@ void MACGrid::advectVelocity(double dt)
 		double velV = mV( i, j, k );
 		double velW = mW( i, j, k );
 
+		// old, seemingly incorrect, method
 		// compute velocity gradient - rate of change in each component direction
 		//vec3 velocityGradient( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize,
 		//					   ( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize,
 		//					   ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
-
 		// solve for advection
 		//velU = velU + ( dt * -1.0f * velU * Dot( UNIT_X, velocityGradient ) );
 		//velV = velV + ( dt * -1.0f * velV * Dot( UNIT_Y, velocityGradient ) );
@@ -151,14 +153,84 @@ void MACGrid::advectVelocity(double dt)
 
 		// compute face center positions
 		vec3 centerPosition = getCenter( i, j, k );
-		vec3 grid_X_Bottom_Border_Pos = centerPosition - vec3( theCellSize * 0.5f, 0.0f, 0.0f );
-		vec3 grid_Y_Bottom_Border_Pos = centerPosition - vec3( 0.0f, theCellSize * 0.5f, 0.0f );
-		vec3 grid_Z_Bottom_Border_Pos = centerPosition - vec3( 0.0f, 0.0f, theCellSize * 0.5f );
+		vec3 grid_x_bottom_border_pos = centerPosition - vec3( theCellSize * 0.5f, 0.0f, 0.0f );
+		vec3 grid_y_bottom_border_pos = centerPosition - vec3( 0.0f, theCellSize * 0.5f, 0.0f );
+		vec3 grid_z_bottom_border_pos = centerPosition - vec3( 0.0f, 0.0f, theCellSize * 0.5f );
+
+
+		// TODO: bounday checking b/c border cells will be different
+
+		
+		////////////////////////////////////////////////////
+		// compute velocities at face centers
+		////////////////////////////////////////////////////
+
+		vec3 grid_x_bottom_border_vel, grid_y_bottom_border_vel, grid_z_bottom_border_vel;
+
+		// compute velocity at grid_x_bottom_border_pos
+		if ( i == 0 ) {
+			// low boundary cell
+			grid_x_bottom_border_vel[VX] = velU;
+			grid_x_bottom_border_vel[VY] = 0.5f * ( velV + mV( i, j+1, k ) );
+			grid_x_bottom_border_vel[VZ] = 0.5f * ( velW + mW( i, j, k+1 ) );
+		}
+		else if ( i == theDim[MACGrid::X] ) {
+			// high boundary cell
+			grid_x_bottom_border_vel[VX] = velU;
+			grid_x_bottom_border_vel[VY] = 0.5f * ( mV( i-1, j, k ) + mV( i-1, j+1, k ) );
+			grid_x_bottom_border_vel[VZ] = 0.5f * ( mW( i-1, j, k ) + mW( i-1, j, k+1 ) );
+		}
+		else {
+			// not boundary cell - cell is somehwere in middle of container
+			grid_x_bottom_border_vel[VX] = velU;
+			grid_x_bottom_border_vel[VY] = 0.25f * ( velV + mV( i-1, j, k ) + mV( i, j+1, k ) + mV( i-1, j+1, k ) );
+			grid_x_bottom_border_vel[VZ] = 0.25f * ( velW + mW( i-1, j, k ) + mW( i, j, k+1 ) + mW( i-1, j, k+1 ) );
+		}
+
+		// compute velocity at grid_y_bottom_border_pos
+		if ( j == 0 ) {
+			// low boundary cell
+			grid_y_bottom_border_vel[VX] = 0.5f * ( velU + mU( i+1, j, k ) );
+			grid_y_bottom_border_vel[VY] = velV;
+			grid_y_bottom_border_vel[VZ] = 0.5f * ( velW + mW( i, j, k+1 ) );
+		}
+		else if ( j == theDim[MACGrid::Y] ) {
+			// high boundary cell
+			grid_y_bottom_border_vel[VX] = 0.5f * (  mU( i, j-1, k ) + mU( i+1, j-1, k ) );
+			grid_y_bottom_border_vel[VY] = velV;
+			grid_y_bottom_border_vel[VZ] = 0.5f * ( mW( i, j-1, k ) + mW( i, j-1, k+1 ) );
+		}
+		else {
+			// not boundary cell - cell is somehwere in middle of container
+			grid_y_bottom_border_vel[VX] = 0.25f * ( velU + mU( i, j-1, k ) + mU( i+1, j, k ) + mU( i+1, j-1, k ) );
+			grid_y_bottom_border_vel[VY] = velV;
+			grid_y_bottom_border_vel[VZ] = 0.25f * ( velW + mW( i, j-1, k ) + mW( i, j, k+1 ) + mW( i, j-1, k+1 ) );
+		}
+
+		// compute velocity at grid_z_bottom_border_pos
+		if ( k == 0 ) {
+			// low boundary cell
+			grid_z_bottom_border_vel[VX] = 0.5f * ( velU + mU( i+1, j, k ) );
+			grid_z_bottom_border_vel[VY] = 0.5f * ( velV + mV( i, j+1, k ) );
+			grid_z_bottom_border_vel[VZ] = velW;
+		}
+		else if ( k == theDim[MACGrid::Z] ) {
+			// high boundary cell
+			grid_z_bottom_border_vel[VX] = 0.5f * ( mU( i, j, k-1 ) + mU( i+1, j, k-1 ) );
+			grid_z_bottom_border_vel[VY] = 0.5f * ( mV( i, j, k-1 ) + mV( i, j+1, k-1 ) );
+			grid_z_bottom_border_vel[VZ] = velW;
+		}
+		else {
+			// not boundary cell - cell is somehwere in middle of container
+			grid_z_bottom_border_vel[VX] = 0.25f * ( velU + mU( i, j, k-1 ) + mU( i+1, j, k ) + mU( i+1, j, k-1 ) );
+			grid_z_bottom_border_vel[VY] = 0.25f * ( velV + mV( i, j, k-1 ) + mV( i, j+1, k ) + mV( i, j+1, k-1 ) );
+			grid_z_bottom_border_vel[VZ] = velW;
+		}
 
 		// solve for advection
-		velU = getVelocityX( grid_X_Bottom_Border_Pos - vec3( dt * velU, dt * velV, dt * velW ) );
-		velV = getVelocityY( grid_Y_Bottom_Border_Pos - vec3( dt * velU, dt * velV, dt * velW ) );
-		velW = getVelocityZ( grid_Z_Bottom_Border_Pos - vec3( dt * velU, dt * velV, dt * velW ) );
+		velU = getVelocityX( grid_x_bottom_border_pos - ( dt * grid_x_bottom_border_vel ) );
+		velV = getVelocityY( grid_y_bottom_border_pos - ( dt * grid_y_bottom_border_vel ) );
+		velW = getVelocityZ( grid_z_bottom_border_pos - ( dt * grid_z_bottom_border_vel ) );
 
 		// store in target
 		target.mU( i, j, k ) = velU;
