@@ -100,11 +100,11 @@ void MACGrid::updateSources()
 {
     // TODO: Set initial values for density, temperature, and velocity.
 
-	mP( 0, 0, 0 ) = 1.0;
+	//mP( 0, 0, 0 ) = 1.0;
 	mT( 0, 0 ,0 ) = 280;
 	mD( 0, 0, 0 ) = 1.0;
 	//mU(0, 0, 0) = 1.0;
-	mV( 0, 0, 0 ) = 1.0;
+	mV( 0, 1, 0 ) = 1.0;
 	//mW(0, 0, 0) = 1.0;
 
 }
@@ -127,9 +127,12 @@ void MACGrid::advectVelocity(double dt)
 							   ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
 
 		// solve for advection
-		velU += -1.0f * dt * velU * Dot( UNIT_X, velocityGradient );
-		velV += -1.0f * dt * velV * Dot( UNIT_Y, velocityGradient );
-		velW += -1.0f * dt * velW * Dot( UNIT_Z, velocityGradient );
+		//velU = velU + ( dt * -1.0f * velU * Dot( UNIT_X, velocityGradient ) );
+		//velV = velV + ( dt * -1.0f * velV * Dot( UNIT_Y, velocityGradient ) );
+		//velW = velW + ( dt * -1.0f * velW * Dot( UNIT_Z, velocityGradient ) );
+		velU = velU + ( dt * -1.0f * velU * mU( i, j, k ));
+		velV = velV + ( dt * -1.0f * velV * mV( i, j, k ));
+		velW = velW + ( dt * -1.0f * velW * mW( i, j, k ));
 
 		// store in target
 		target.mU( i, j, k ) = velU;
@@ -251,9 +254,9 @@ void MACGrid::project( double dt )
 
 	FOR_EACH_CELL {
 		// fill divergence vector - ( constant * density * velocity gradient )
-		d( i, j, k ) = constant * mD( i, j, k ) * ( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize +
-													( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize +
-													( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
+		d(i, j, k) = constant * /*mD(i, j, k)*/  ( (mU(i+1, j, k) - mU(i, j, k)) / theCellSize + 
+			                      (mV(i, j+1, k) - mV(i, j, k)) / theCellSize +
+								  (mW(i, j, k+1) - mW(i, j, k)) / theCellSize); 
 
 		int num_neighbors = 6;
 		bool has_neighbor_plus_x = true, has_neighbor_plus_y = true, has_neighbor_plus_z = true;
@@ -357,14 +360,30 @@ void MACGrid::project( double dt )
 		}
 
 		// apply computed pressures to velocity field
-		velU -= dt * ( 1.0f / mD( i, j, k ) ) * ( ( current_pressure - pressure_i_minus_1 ) / theCellSize );
-		velV -= dt * ( 1.0f / mD( i, j, k ) ) * ( ( current_pressure - pressure_j_minus_1 ) / theCellSize );
-		velW -= dt * ( 1.0f / mD( i, j, k ) ) * ( ( current_pressure - pressure_k_minus_1 ) / theCellSize );
+		if(i == 0 || i == theDim[MACGrid::X])
+			velU = 0;
+		else
+			velU -= dt /*/ mD( i, j, k )*/ * (target.mP( i, j, k ) - pressure_i_minus_1) / theCellSize;
+		
+		
+		if(j == 0 || j == theDim[MACGrid::Y])
+			velV = 0;
+		else		
+			velV -= dt /*/ mD( i, j, k )*/ * (target.mP( i, j, k ) - pressure_j_minus_1) / theCellSize;
+		
+
+		if(k == 0 || k == theDim[MACGrid::Z])
+			velW = 0;
+		else	
+			velW -= dt /*/ mD( i, j, k )*/ * (target.mP( i, j, k ) - pressure_k_minus_1) / theCellSize;
 
 		// store in target
-		target.mU( i, j, k ) = velU;
-		target.mV( i, j, k ) = velV;
-		target.mW( i, j, k ) = velW;
+		if(j < theDim[MACGrid::Y] && k < theDim[MACGrid::Z])
+			target.mU( i, j, k ) = velU;
+		if(i < theDim[MACGrid::X] && k < theDim[MACGrid::Z])
+			target.mV( i, j, k ) = velV;
+		if(i < theDim[MACGrid::X] && j < theDim[MACGrid::Y])
+			target.mW( i, j, k ) = velW;
 	}
 	
 	// save result to object
@@ -372,6 +391,20 @@ void MACGrid::project( double dt )
 	mU = target.mU;
 	mV = target.mV;
 	mW = target.mW;
+
+		FOR_EACH_CELL
+	{
+		double sum = (mU(i+1,j,k) - mU(i,j,k)) + 
+					 (mV(i,j+1,k) - mV(i,j,k)) +
+					 (mW(i,j,k+1) - mW(i,j,k));
+
+
+		if(abs(sum) > 0.01 )
+		{
+			bool non_divergence_free = true;
+		}
+	}
+
 }
 
 vec3 MACGrid::getVelocity(const vec3& pt)
