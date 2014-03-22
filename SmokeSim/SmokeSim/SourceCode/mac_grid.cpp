@@ -130,9 +130,14 @@ void MACGrid::advectVelocity(double dt)
 		//velU = velU + ( dt * -1.0f * velU * Dot( UNIT_X, velocityGradient ) );
 		//velV = velV + ( dt * -1.0f * velV * Dot( UNIT_Y, velocityGradient ) );
 		//velW = velW + ( dt * -1.0f * velW * Dot( UNIT_Z, velocityGradient ) );
-		velU = velU + ( dt * -1.0f * velU * mU( i, j, k ));
-		velV = velV + ( dt * -1.0f * velV * mV( i, j, k ));
-		velW = velW + ( dt * -1.0f * velW * mW( i, j, k ));
+		vec3 centerPosition = getCenter( i, j, k );
+		vec3 grid_X_Bottom_Border_Pos = centerPosition - vec3( theCellSize * 0.5f, 0, 0 );
+		vec3 grid_Y_Bottom_Border_Pos = centerPosition - vec3( 0, theCellSize * 0.5f, 0 );
+		vec3 grid_Z_Bottom_Border_Pos = centerPosition - vec3( 0, 0, theCellSize * 0.5f );
+
+		velU = getVelocityX(grid_X_Bottom_Border_Pos - vec3(dt * velU, 0, 0));
+		velV = getVelocityY(grid_Y_Bottom_Border_Pos - vec3(0, dt * velV, 0));
+		velW = getVelocityZ(grid_Z_Bottom_Border_Pos - vec3(0, 0, dt * velW));
 
 		// store in target
 		target.mU( i, j, k ) = velU;
