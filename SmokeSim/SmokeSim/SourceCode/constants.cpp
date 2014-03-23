@@ -14,3 +14,4 @@ const int theDim[3] = {2, 2, 1};//12, 12, 4
 
 const double theCellSize = 0.5;
 
+// TODO: add constants for dispersed bubble simulation

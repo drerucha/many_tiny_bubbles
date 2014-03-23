@@ -314,12 +314,13 @@ void MACGrid::computeBouyancy( double dt )
 	}
 
 	FOR_EACH_CELL {
-		if ( j != 0 )
+		if ( j != 0 ) {
 
 			// TODO: ask how to properly apply computed forces to velocity field
 			// perhaps explicit Euler integration?
 
 			target.mV( i, j, k ) = mV( i, j, k ) + ( target.mTemp( i, j, k ) + target.mTemp( i, j-1, k ) ) / 2.0f;
+		}
 	}
 
 	mV = target.mV;

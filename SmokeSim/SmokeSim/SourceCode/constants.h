@@ -14,6 +14,7 @@ extern const int theMillisecondsPerFrame;
 extern const int theDim[3];
 extern const double theCellSize;
 
+// TODO: add constants for dispersed bubble simulation
 
 
 #endif

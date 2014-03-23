@@ -64,6 +64,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="SourceCode\basic_math.cpp" />
+    <ClCompile Include="SourceCode\Bubbles.cpp" />
     <ClCompile Include="SourceCode\camera.cpp" />
     <ClCompile Include="SourceCode\constants.cpp" />
     <ClCompile Include="SourceCode\fps.cpp" />
@@ -77,6 +78,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceCode\basic_math.h" />
+    <ClInclude Include="SourceCode\Bubbles.h" />
     <ClInclude Include="SourceCode\camera.h" />
     <ClInclude Include="SourceCode\clock.h" />
     <ClInclude Include="SourceCode\constants.h" />
