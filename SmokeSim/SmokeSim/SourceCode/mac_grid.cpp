@@ -298,27 +298,30 @@ void MACGrid::advectDensity( double dt )
 	mD = target.mD;
 }
 
-void MACGrid::computeBouyancy(double dt)
+void MACGrid::computeBouyancy( double dt )
 {
 	// TODO: calculate bouyancy and store in target
 
 
-	double alpha = 0.1;
-	double beta = 0.01;
+	// TODO: tune alpha and beta parameters
 
-	FOR_EACH_CELL
-	{
-		target.mTemp( i, j, k ) = -1 * alpha * mD( i, j, k ) + beta * (mT( i, j, k )  - 270);
+	double alpha = 0.1f;
+	double beta = 0.01f;
+	double ambient_temp = 300.0f;
+
+	FOR_EACH_CELL {
+		target.mTemp( i, j, k ) = -1.0f * alpha * mD( i, j, k ) + beta * ( mT( i, j, k )  - ambient_temp );
 	}
 
-	FOR_EACH_CELL
-	{
-		if(j != 0)
-			//target.mV( i, j, k ) = mV( i, j, k ) + -1 * alpha * mD( i, j, k ) + beta * ((mT( i, j, k ) + mT( i, j-1, k )) / 2.0f - 270);
-			target.mV( i, j, k ) = mV( i, j, k ) +(target.mTemp( i, j, k ) + target.mTemp( i, j-1, k )) / 2.0f;
+	FOR_EACH_CELL {
+		if ( j != 0 )
+
+			// TODO: ask how to properly apply computed forces to velocity field
+			// perhaps explicit Euler integration?
+
+			target.mV( i, j, k ) = mV( i, j, k ) + ( target.mTemp( i, j, k ) + target.mTemp( i, j-1, k ) ) / 2.0f;
 	}
 
-	//target.mV = mV;
 	mV = target.mV;
 }
 
@@ -354,7 +357,7 @@ void MACGrid::computeVorticityConfinement( double dt )
 	
 	// TODO: ask how to apply computed forces to velocity field
 
-	// take forces vorticity confinement forces computed at cell centers and approximate at faces for velocity field 
+	// take vorticity confinement forces computed at cell centers and approximate at faces for velocity field 
 	FOR_EACH_CELL {
 
 		// TODO: ask about boundary conditions here
