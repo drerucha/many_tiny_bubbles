@@ -7,7 +7,7 @@
 const int theMillisecondsPerFrame = 10;
 
 #ifdef _DEBUG
-const int theDim[3] = {4, 10, 4};
+const int theDim[3] = {9, 10, 4};
 #else
 const int theDim[3] = {2, 2, 1};//12, 12, 4
 #endif

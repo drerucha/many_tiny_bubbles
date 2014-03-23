@@ -41,7 +41,7 @@ bool MACGrid::theDisplayVel = false;
 #define UNIT_Z vec3( 0.0f, 0.0f, 1.0f )
 
 const double FLUID_DENSITY = 1.0f;
-const double INITIAL_TEMPERATURE = 260.0f;
+const double INITIAL_TEMPERATURE = 0.0f;
 
 
 MACGrid::MACGrid()
@@ -61,17 +61,20 @@ MACGrid::MACGrid(const MACGrid& orig)
 
 MACGrid& MACGrid::operator=(const MACGrid& orig)
 {
-   if (&orig == this)
-   {
-      return *this;
-   }
-   mU = orig.mU;
-   mV = orig.mV;
-   mW = orig.mW;
-   mP = orig.mP;
-   mD = orig.mD;
-   mT = orig.mT;   
-
+	if (&orig == this)
+	{
+		return *this;
+	}
+	mU = orig.mU;
+	mV = orig.mV;
+	mW = orig.mW;
+	mP = orig.mP;
+	mD = orig.mD;
+	mT = orig.mT;   
+	mTemp = orig.mTemp;
+	mConfForceX = orig.mConfForceX;
+	mConfForceY = orig.mConfForceY;
+	mConfForceZ = orig.mConfForceZ;
    return *this;
 }
 
@@ -81,12 +84,16 @@ MACGrid::~MACGrid()
 
 void MACGrid::reset()
 {
-   mU.initialize();
-   mV.initialize();
-   mW.initialize();
-   mP.initialize();
-   mD.initialize();
-   mT.initialize( INITIAL_TEMPERATURE );
+	mU.initialize();
+	mV.initialize();
+	mW.initialize();
+	mP.initialize();
+	mD.initialize();
+	mT.initialize( INITIAL_TEMPERATURE );
+   	mTemp.initialize();
+	mConfForceX.initialize();
+	mConfForceY.initialize();
+	mConfForceZ.initialize();
 
    setUpAMatrix();
 }
@@ -101,13 +108,13 @@ void MACGrid::updateSources()
     // TODO: set initial values for density, temperature, and velocity
 
 	//mP( 0, 0, 0 ) = 1.0;
-	mT( 0, 0 ,0 ) = 280.0f;
-	mD( 0, 0, 0 ) = 1.0f;
+	mT( 4, 1 ,0 ) = 280.0f;
+	mD( 4, 1, 0 ) = 1.0f;
 	//mU(0, 0, 0) = 1.0;
-	mV( 0, 1, 0 ) = 1.0f;
+	mV( 4, 1, 0 ) = 1.0f;
 	//mW(0, 0, 0) = 1.0;
 
-	mU( 1, 0, 0 ) = 1.0f;
+	//mU( 1, 0, 0 ) = 1.0f;
 
 
 	//mD( 0, 0, 0 ) = 1.0;
@@ -228,14 +235,18 @@ void MACGrid::advectVelocity(double dt)
 		}
 
 		// solve for advection
+
 		velU = getVelocityX( grid_x_bottom_border_pos - ( dt * grid_x_bottom_border_vel ) );
 		velV = getVelocityY( grid_y_bottom_border_pos - ( dt * grid_y_bottom_border_vel ) );
 		velW = getVelocityZ( grid_z_bottom_border_pos - ( dt * grid_z_bottom_border_vel ) );
 
 		// store in target
-		target.mU( i, j, k ) = velU;
-		target.mV( i, j, k ) = velV;
-		target.mW( i, j, k ) = velW;
+		if(i != 0 && i != theDim[MACGrid::X])
+			target.mU( i, j, k ) = velU;
+		if(j != 0 && j != theDim[MACGrid::Y])
+			target.mV( i, j, k ) = velV;
+		if(k != 0 && k != theDim[MACGrid::Z])
+			target.mW( i, j, k ) = velW;
 	}
 
     // save result to object
@@ -286,15 +297,17 @@ void MACGrid::computeBouyancy(double dt)
 
 	double alpha = 0.1;
 	double beta = 0.01;
-	double concentration = 1.0; // TODO
-	FOR_EACH_CELL {
-		//double deltaTemp = ;
-		
-		//vec3 buoyancyForce(0, -1 * alpha * concentration + beta * (mT(i, j, k) - 270), 0);
 
-		if ( j != 0 ) {
-			target.mV( i, j, k ) = mV( i, j, k ) + -1.0f * alpha * mD( i, j, k ) + beta * ( ( mT( i, j, k ) + mT( i, j-1, k ) ) / 2.0f - 270.0f );
-		}
+	FOR_EACH_CELL
+	{
+		target.mTemp( i, j, k ) = -1 * alpha * mD( i, j, k ) + beta * (mT( i, j, k )  - 270);
+	}
+
+	FOR_EACH_CELL
+	{
+		if(j != 0)
+			//target.mV( i, j, k ) = mV( i, j, k ) + -1 * alpha * mD( i, j, k ) + beta * ((mT( i, j, k ) + mT( i, j-1, k )) / 2.0f - 270);
+			target.mV( i, j, k ) = mV( i, j, k ) +(target.mTemp( i, j, k ) + target.mTemp( i, j-1, k )) / 2.0f;
 	}
 
 	//target.mV = mV;
@@ -308,10 +321,48 @@ void MACGrid::computeVorticityConfinement(double dt)
 	target.mU = mU;
 	target.mV = mV;
 	target.mW = mW;
+
+
+	double epsilon = 0.1; 
+
+	FOR_EACH_CELL
+	{
+		vec3 omegaGradient( ( getOmegaVector( i+1, j, k ).Length() - getOmegaVector( i-1, j, k ).Length() ) / 2.0f / theCellSize,
+							( getOmegaVector( i, j+1, k ).Length() - getOmegaVector( i, j-1, k ).Length() ) / 2.0f / theCellSize,
+							( getOmegaVector( i, j, k+1 ).Length() - getOmegaVector( i, j, k-1 ).Length() ) / 2.0f / theCellSize);
+	
+		vec3 normal = omegaGradient / (omegaGradient.Length() + 0.00000000001);
+		vec3 temp = getOmegaVector( i, j, k );
+		vec3 confinement = epsilon * theCellSize * normal.Cross(getOmegaVector( i, j, k ));
+		target.mConfForceX(i, j, k) = confinement[0];
+		target.mConfForceY(i, j, k) = confinement[1];
+		target.mConfForceZ(i, j, k) = confinement[2];
+	}
+	
+	FOR_EACH_CELL
+	{
+		if(i != 0)
+			target.mU(i,j,k) += (target.mConfForceX(i, j, k) + target.mConfForceX(i-1, j, k)) / 2.0f;
+		if(j != 0)
+			target.mV(i,j,k) += (target.mConfForceY(i, j, k) + target.mConfForceY(i, j-1, k)) / 2.0f;
+		if(k != 0)
+			target.mW(i,j,k) += (target.mConfForceZ(i, j, k) + target.mConfForceZ(i, j, k-1)) / 2.0f;
+	}
+
+
 	// Then save the result to our object.
 	mU = target.mU;
 	mV = target.mV;
 	mW = target.mW;
+}
+
+vec3 MACGrid::getOmegaVector(int i, int j, int k)
+{
+	vec3 omega( (mW( i, j+1, k ) - mW( i, j-1, k )) / 2.0f / theCellSize - (mV( i, j, k+1 ) - mV( i, j, k-1 )) / 2.0f / theCellSize,
+				(mU( i, j, k+1 ) - mU( i, j, k-1 )) / 2.0f / theCellSize - (mW( i+1, j, k ) - mW( i-1, j, k )) / 2.0f / theCellSize,
+				(mV( i+1, j, k ) - mV( i-1, j, k )) / 2.0f / theCellSize - (mU( i, j+1, k ) - mU( i, j-1, k )) / 2.0f / theCellSize);
+
+	return omega;
 }
 
 void MACGrid::addExternalForces(double dt)
@@ -491,16 +542,16 @@ void MACGrid::project( double dt )
 	mW = target.mW;
 
 	// debug - test if system is divergence free
-	//FOR_EACH_CELL {
-	//	double sum = (mU(i+1,j,k) - mU(i,j,k)) + 
-	//				 (mV(i,j+1,k) - mV(i,j,k)) +
-	//				 (mW(i,j,k+1) - mW(i,j,k));
+	FOR_EACH_CELL {
+		double sum = (mU(i+1,j,k) - mU(i,j,k)) + 
+					 (mV(i,j+1,k) - mV(i,j,k)) +
+					 (mW(i,j,k+1) - mW(i,j,k));
 
 
-	//	if ( abs( sum ) > 0.01 ) {
-	//		bool non_divergence_free = true;
-	//	}
-	//}
+		if ( abs( sum ) > 0.01 ) {
+			bool non_divergence_free = true;
+		}
+	}
 }
 
 vec3 MACGrid::getVelocity(const vec3& pt)

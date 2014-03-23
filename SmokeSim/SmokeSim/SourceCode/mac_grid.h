@@ -39,6 +39,7 @@ protected:
 	// Simulation:
 	void computeBouyancy(double dt);
 	void computeVorticityConfinement(double dt);
+	vec3 getOmegaVector(int i, int j, int k);
 
 	// Rendering:
 	struct Cube { vec3 pos; vec4 color; double dist; };
@@ -83,6 +84,10 @@ protected:
 	GridData mP;  // Pressure, stored at grid centers, size is dimX*dimY*dimZ
 	GridData mD;  // Density, stored at grid centers, size is dimX*dimY*dimZ
 	GridData mT;  // Temperature, stored at grid centers, size is dimX*dimY*dimZ
+	GridData mTemp;
+	GridData mConfForceX;
+	GridData mConfForceY;
+	GridData mConfForceZ;
 
 	// The A matrix:
 	GridDataMatrix AMatrix;
