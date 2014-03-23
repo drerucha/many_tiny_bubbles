@@ -322,55 +322,69 @@ void MACGrid::computeBouyancy(double dt)
 	mV = target.mV;
 }
 
-void MACGrid::computeVorticityConfinement(double dt)
+void MACGrid::computeVorticityConfinement( double dt )
 {
-	// TODO: Calculate vorticity confinement forces.
-	// Apply the forces to the current velocity and store the result in target.
-	target.mU = mU;
-	target.mV = mV;
-	target.mW = mW;
+	// TODO: calculate vorticity confinement forces
 
 
-	double epsilon = 0.1; 
+	double epsilon = 0.1f;
+	double two_cell_widths = 2.0f * theCellSize;
+	double very_small = pow( 10.0f, -20.0f );
 
-	FOR_EACH_CELL
-	{
-		vec3 omegaGradient( ( getOmegaVector( i+1, j, k ).Length() - getOmegaVector( i-1, j, k ).Length() ) / 2.0f / theCellSize,
-							( getOmegaVector( i, j+1, k ).Length() - getOmegaVector( i, j-1, k ).Length() ) / 2.0f / theCellSize,
-							( getOmegaVector( i, j, k+1 ).Length() - getOmegaVector( i, j, k-1 ).Length() ) / 2.0f / theCellSize);
+	FOR_EACH_CELL {
+
+		// TODO: ask about boundary conditions here
+		// index out of bounds when i == 0, 1, theDim[MACGrid::X]
+		// index out of bounds when j == 0, 1, theDim[MACGrid::Y]
+		// index out of bounds when k == 0, 1, theDim[MACGrid::Z]
+		// velocities return 0 by default for these cases
+		vec3 omegaGradient( ( getOmegaVector( i+1, j, k ).Length() - getOmegaVector( i-1, j, k ).Length() ) / two_cell_widths,
+							( getOmegaVector( i, j+1, k ).Length() - getOmegaVector( i, j-1, k ).Length() ) / two_cell_widths,
+							( getOmegaVector( i, j, k+1 ).Length() - getOmegaVector( i, j, k-1 ).Length() ) / two_cell_widths );
 	
-		vec3 normal = omegaGradient / (omegaGradient.Length() + 0.00000000001);
-		vec3 temp = getOmegaVector( i, j, k );
-		vec3 confinement = epsilon * theCellSize * normal.Cross(getOmegaVector( i, j, k ));
+		// add very_small to prevent divide by zero
+		vec3 normal = omegaGradient / ( omegaGradient.Length() + very_small );
+
+		//vec3 temp = getOmegaVector( i, j, k );
+		vec3 confinement = epsilon * theCellSize * normal.Cross( getOmegaVector( i, j, k ) );
 		target.mConfForceX(i, j, k) = confinement[0];
 		target.mConfForceY(i, j, k) = confinement[1];
 		target.mConfForceZ(i, j, k) = confinement[2];
 	}
 	
-	FOR_EACH_CELL
-	{
-		if(i != 0)
-			target.mU(i,j,k) += (target.mConfForceX(i, j, k) + target.mConfForceX(i-1, j, k)) / 2.0f;
-		if(j != 0)
-			target.mV(i,j,k) += (target.mConfForceY(i, j, k) + target.mConfForceY(i, j-1, k)) / 2.0f;
-		if(k != 0)
-			target.mW(i,j,k) += (target.mConfForceZ(i, j, k) + target.mConfForceZ(i, j, k-1)) / 2.0f;
+	// TODO: ask how to apply computed forces to velocity field
+
+	// take forces vorticity confinement forces computed at cell centers and approximate at faces for velocity field 
+	FOR_EACH_CELL {
+
+		// TODO: ask about boundary conditions here
+		// currently, faces with 0 indices are being ignored
+
+		if ( i != 0 ) {
+			target.mU( i, j, k ) += ( target.mConfForceX( i, j, k ) + target.mConfForceX( i-1, j, k ) ) / 2.0f;
+		}
+		if ( j != 0 ) {
+			target.mV( i, j, k ) += ( target.mConfForceY( i, j, k ) + target.mConfForceY( i, j-1, k ) ) / 2.0f;
+		}
+		if ( k != 0 ) {
+			target.mW( i, j, k ) += ( target.mConfForceZ( i, j, k ) + target.mConfForceZ( i, j, k-1 ) ) / 2.0f;
+		}
 	}
 
-
-	// Then save the result to our object.
+	// save result to object
 	mU = target.mU;
 	mV = target.mV;
 	mW = target.mW;
 }
 
-vec3 MACGrid::getOmegaVector(int i, int j, int k)
+vec3 MACGrid::getOmegaVector( int i, int j, int k )
 {
-	vec3 omega( (mW( i, j+1, k ) - mW( i, j-1, k )) / 2.0f / theCellSize - (mV( i, j, k+1 ) - mV( i, j, k-1 )) / 2.0f / theCellSize,
-				(mU( i, j, k+1 ) - mU( i, j, k-1 )) / 2.0f / theCellSize - (mW( i+1, j, k ) - mW( i-1, j, k )) / 2.0f / theCellSize,
-				(mV( i+1, j, k ) - mV( i-1, j, k )) / 2.0f / theCellSize - (mU( i, j+1, k ) - mU( i, j-1, k )) / 2.0f / theCellSize);
+	double two_cell_widths = 2.0f * theCellSize;
 
-	return omega;
+	// return omega vector
+	return vec3( ( mW( i, j+1, k ) - mW( i, j-1, k ) ) / two_cell_widths - ( mV( i, j, k+1 ) - mV( i, j, k-1 ) ) / two_cell_widths,
+				 ( mU( i, j, k+1 ) - mU( i, j, k-1 ) ) / two_cell_widths - ( mW( i+1, j, k ) - mW( i-1, j, k ) ) / two_cell_widths,
+				 ( mV( i+1, j, k ) - mV( i-1, j, k ) ) / two_cell_widths - ( mU( i, j+1, k ) - mU( i, j-1, k ) ) / two_cell_widths );
 }
 
 void MACGrid::addExternalForces(double dt)
