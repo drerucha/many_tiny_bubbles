@@ -138,8 +138,6 @@ void MACGrid::advectVelocity(double dt)
 {
     // TODO: compute new velocities and store in target
 
-	// TODO: significant boundary checking
-
 
 	// loops through every MacGrid face; defines i, j, k
 	FOR_EACH_FACE {
@@ -165,9 +163,6 @@ void MACGrid::advectVelocity(double dt)
 		vec3 grid_z_bottom_border_pos = centerPosition - vec3( 0.0f, 0.0f, theCellSize * 0.5f );
 
 
-		// TODO: bounday checking b/c border cells will be different
-
-		
 		////////////////////////////////////////////////////
 		// compute velocities at face centers
 		////////////////////////////////////////////////////
@@ -235,18 +230,31 @@ void MACGrid::advectVelocity(double dt)
 		}
 
 		// solve for advection
-
 		velU = getVelocityX( grid_x_bottom_border_pos - ( dt * grid_x_bottom_border_vel ) );
 		velV = getVelocityY( grid_y_bottom_border_pos - ( dt * grid_y_bottom_border_vel ) );
 		velW = getVelocityZ( grid_z_bottom_border_pos - ( dt * grid_z_bottom_border_vel ) );
 
-		// store in target
-		if(i != 0 && i != theDim[MACGrid::X])
+		// store in target, checking boundaries
+		if ( i > 0 && i < theDim[MACGrid::X] ) {
 			target.mU( i, j, k ) = velU;
-		if(j != 0 && j != theDim[MACGrid::Y])
+		}
+		else {
+			target.mU( i, j, k ) = 0.0f;
+		}
+
+		if ( j > 0 && j < theDim[MACGrid::Y] ) {
 			target.mV( i, j, k ) = velV;
-		if(k != 0 && k != theDim[MACGrid::Z])
+		}
+		else {
+			target.mV( i, j, k ) = 0.0f;
+		}
+
+		if ( k != 0 && k != theDim[MACGrid::Z] ) {
 			target.mW( i, j, k ) = velW;
+		}
+		else {
+			target.mW( i, j, k ) = 0.0f;
+		}
 	}
 
     // save result to object
