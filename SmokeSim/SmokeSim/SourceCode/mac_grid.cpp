@@ -271,7 +271,7 @@ void MACGrid::advectTemperature( double dt )
 
 	FOR_EACH_CELL {
 		// velocity at cell center
-		vec3 velocity( mU( i, j, k ), mV( i, j, k ), mW( i, j, k ) );
+		vec3 velocity( (mU( i, j, k ) + mU( i+1, j, k ))/2.0f, (mV( i, j, k ) + mV( i, j+1, k ))/2.0f, (mW( i, j, k )+mW( i, j, k+1 ))/2.0f );
 
 		// trace back particle position using known velocity
 		vec3 pos = getCenter( i, j, k );
@@ -291,7 +291,7 @@ void MACGrid::advectDensity( double dt )
 
 	// use an identical trace back method to the one used in MACGrid::advectTemperature()
 	FOR_EACH_CELL {
-		vec3 velocity( mU( i, j, k ), mV( i, j, k ), mW( i, j, k ) );
+		vec3 velocity( (mU( i, j, k ) + mU( i+1, j, k ))/2.0f, (mV( i, j, k ) + mV( i, j+1, k ))/2.0f, (mW( i, j, k )+mW( i, j, k+1 ))/2.0f );
 		vec3 pos = getCenter(i, j, k);
 		pos -= dt * velocity;
 		target.mD(i,j,k) = getDensity(pos);
