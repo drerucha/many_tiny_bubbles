@@ -42,6 +42,7 @@ bool MACGrid::theDisplayVel = false;
 
 const double FLUID_DENSITY = 1.0f;
 const double INITIAL_TEMPERATURE = 0.0f;
+const double PARTICLE_MASS = 1.0f;
 
 
 MACGrid::MACGrid()
@@ -301,13 +302,11 @@ void MACGrid::advectDensity( double dt )
 void MACGrid::computeBouyancy( double dt )
 {
 	// TODO: calculate bouyancy and store in target
-
-
 	// TODO: tune alpha and beta parameters
 
 	double alpha = 0.1f;
 	double beta = 0.01f;
-	double ambient_temp = 300.0f;
+	double ambient_temp = 270.0f;
 
 	FOR_EACH_CELL {
 		target.mTemp( i, j, k ) = -1.0f * alpha * mD( i, j, k ) + beta * ( mT( i, j, k )  - ambient_temp );
@@ -315,11 +314,24 @@ void MACGrid::computeBouyancy( double dt )
 
 	FOR_EACH_CELL {
 		if ( j != 0 ) {
+			// get cell center position
+			vec3 cell_center_pos = getCenter( i, j, k );
 
-			// TODO: ask how to properly apply computed forces to velocity field
-			// perhaps explicit Euler integration?
+			// get y face center position
+			vec3 y_face_center_pos = cell_center_pos - vec3( 0.0f, theCellSize * 0.5f, 0.0f );
 
-			target.mV( i, j, k ) = mV( i, j, k ) + ( target.mTemp( i, j, k ) + target.mTemp( i, j-1, k ) ) / 2.0f;
+			// interpolate buoyancy force from cell center to face center
+			double buoyancy_force = target.mTemp.interpolate( y_face_center_pos );
+		
+			// acceleration = force on particle / mass of particle
+			double acceleration = buoyancy_force / PARTICLE_MASS;
+
+			// perform explicit Euler integration to update existing velocity with applied force
+			// v' = v + at
+			target.mV( i, j, k ) = mV( i, j, k ) + dt * acceleration;
+
+			// this is incorrect
+			//target.mV( i, j, k ) = mV( i, j, k ) + ( target.mTemp( i, j, k ) + target.mTemp( i, j-1, k ) ) / 2.0f;
 		}
 	}
 
