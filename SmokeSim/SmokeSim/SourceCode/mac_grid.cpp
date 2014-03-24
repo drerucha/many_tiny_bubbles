@@ -304,7 +304,7 @@ void MACGrid::computeBouyancy( double dt )
 	// TODO: calculate bouyancy and store in target
 	// TODO: tune alpha and beta parameters
 
-	double alpha = 0.1f;
+	double alpha = 2.0f;
 	double beta = 0.01f;
 	double ambient_temp = 270.0f;
 
@@ -343,7 +343,7 @@ void MACGrid::computeVorticityConfinement( double dt )
 	// TODO: calculate vorticity confinement forces
 
 
-	double epsilon = 0.1f;
+	double epsilon = 0.01f;
 	double two_cell_widths = 2.0f * theCellSize;
 	double very_small = pow( 10.0f, -20.0f );
 
@@ -376,14 +376,24 @@ void MACGrid::computeVorticityConfinement( double dt )
 		// TODO: ask about boundary conditions here
 		// currently, faces with 0 indices are being ignored
 
+		// first, approximate vorticity force at face center with linear interpolation
+		// next, acceleration = force on particle / mass of particle
+		// finally, perform explicit Euler integration to update existing velocity with applied force
+		// v' = v + at
 		if ( i != 0 ) {
-			target.mU( i, j, k ) += ( target.mConfForceX( i, j, k ) + target.mConfForceX( i-1, j, k ) ) / 2.0f;
+			double vorticity_force_x = ( target.mConfForceX( i, j, k ) + target.mConfForceX( i-1, j, k ) ) / 2.0f;
+			double acceleration_x = vorticity_force_x / PARTICLE_MASS;
+			target.mU( i, j, k ) = mU( i, j, k ) + dt * acceleration_x;
 		}
 		if ( j != 0 ) {
-			target.mV( i, j, k ) += ( target.mConfForceY( i, j, k ) + target.mConfForceY( i, j-1, k ) ) / 2.0f;
+			double vorticity_force_y = ( target.mConfForceY( i, j, k ) + target.mConfForceY( i, j-1, k ) ) / 2.0f;
+			double acceleration_y = vorticity_force_y / PARTICLE_MASS;
+			target.mV( i, j, k ) = mV( i, j, k ) + dt * acceleration_y;
 		}
 		if ( k != 0 ) {
-			target.mW( i, j, k ) += ( target.mConfForceZ( i, j, k ) + target.mConfForceZ( i, j, k-1 ) ) / 2.0f;
+			double vorticity_force_z = ( target.mConfForceZ( i, j, k ) + target.mConfForceZ( i, j, k-1 ) ) / 2.0f;
+			double acceleration_z = vorticity_force_z / PARTICLE_MASS;
+			target.mW( i, j, k ) = mW( i, j, k ) + dt * acceleration_z;	
 		}
 	}
 
