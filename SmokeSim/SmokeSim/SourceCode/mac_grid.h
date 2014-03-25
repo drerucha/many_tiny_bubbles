@@ -39,6 +39,7 @@ protected:
 	// Simulation:
 	void computeBouyancy(double dt);
 	void computeVorticityConfinement(double dt);
+	void computeViscosityForce(double dt);
 	vec3 getOmegaVector(int i, int j, int k);
 
 	// Rendering:

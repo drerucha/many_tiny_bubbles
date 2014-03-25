@@ -43,7 +43,7 @@ bool MACGrid::theDisplayVel = false;
 const double FLUID_DENSITY = 1.0f;
 const double INITIAL_TEMPERATURE = 0.0f;
 const double PARTICLE_MASS = 1.0f;
-
+const double FLUID_VISCOSITY = 1.5f;
 
 MACGrid::MACGrid()
 {
@@ -113,6 +113,8 @@ void MACGrid::updateSources()
 	mD( 4, 1, 0 ) = 1.0f;
 	//mU(0, 0, 0) = 1.0;
 	mV( 4, 1, 0 ) = 1.0f;
+	//mV( 4, 8, 0 ) = -1.0f;
+
 	//mW(0, 0, 0) = 1.0;
 
 	//mU( 1, 0, 0 ) = 1.0f;
@@ -343,7 +345,7 @@ void MACGrid::computeVorticityConfinement( double dt )
 	// TODO: calculate vorticity confinement forces
 
 
-	double epsilon = 0.01f;
+	double epsilon = 1.0f;
 	double two_cell_widths = 2.0f * theCellSize;
 	double very_small = pow( 10.0f, -20.0f );
 
@@ -403,6 +405,75 @@ void MACGrid::computeVorticityConfinement( double dt )
 	mW = target.mW;
 }
 
+void MACGrid::computeViscosityForce(double dt)
+{
+	FOR_EACH_CELL 
+	{
+		//velocity difference between two grids
+
+		double velDiff_IPlus1_I  = mU( i+1, j, k ) - mU( i, j, k );
+		double velDiff_I_IMinus1 = mU( i, j, k ) - mU( i-1, j, k );
+		double velDiff_JPlus1_J  = mU( i, j+1, k ) - mU( i, j, k );
+		double velDiff_J_JMinus1 = mU( i, j, k ) - mU( i, j-1, k );
+		double velDiff_KPlus1_K  = mU( i, j, k+1 ) - mU( i, j, k );
+		double velDiff_K_KMinus1 = mU( i, j, k ) - mU( i, j, k-1 );
+
+		if( i > 0 )
+			velDiff_I_IMinus1 = mU( i, j, k ) - mU( i-1, j, k );
+		else 
+			velDiff_I_IMinus1 = 0.0f;
+
+		if( i < theDim[MACGrid::X])
+			velDiff_IPlus1_I  = mU( i+1, j, k ) - mU( i, j, k );
+		else
+			velDiff_IPlus1_I = 0.0f;
+
+		if( j > 0 )
+			velDiff_J_JMinus1  = mV( i, j, k ) - mV( i, j-1, k );
+		else
+			velDiff_J_JMinus1  = 0.0f;
+
+		if( i < theDim[MACGrid::Y])
+			velDiff_JPlus1_J  = mV( i, j+1, k ) - mV( i, j, k );
+		else
+			velDiff_JPlus1_J = 0.0f;
+
+		if( k > 0 )
+			velDiff_K_KMinus1 = mW( i, j, k ) - mW( i, j, k-1 );
+		else
+			velDiff_K_KMinus1 = 0.0f;
+
+		if( k < theDim[MACGrid::Z] )
+			velDiff_KPlus1_K = mW( i, j, k+1 ) - mW( i, j, k );
+		else
+			velDiff_KPlus1_K = 0.0f;
+
+		// acceleration = force on particle / mass of particle
+		// finally, perform explicit Euler integration to update existing velocity with applied force
+		// v' = v + at
+		if ( i != 0 ) {
+			double viscosityForceX = FLUID_VISCOSITY * (velDiff_IPlus1_I - velDiff_I_IMinus1) / theCellSize / theCellSize;
+			double acceleration_x = viscosityForceX / PARTICLE_MASS;
+			target.mU( i, j, k ) = mU( i, j, k ) + dt * acceleration_x;
+		}
+		if ( j != 0 ) {
+			double viscosityForceY = FLUID_VISCOSITY * (velDiff_JPlus1_J - velDiff_J_JMinus1) / theCellSize / theCellSize;
+			double acceleration_y = viscosityForceY / PARTICLE_MASS;
+			target.mV( i, j, k ) = mV( i, j, k ) + dt * acceleration_y;
+		}
+		if ( k != 0 ) {
+			double viscosityForceZ = FLUID_VISCOSITY * (velDiff_KPlus1_K - velDiff_K_KMinus1) / theCellSize / theCellSize;
+			double acceleration_z = viscosityForceZ / PARTICLE_MASS;
+			target.mW( i, j, k ) = mW( i, j, k ) + dt * acceleration_z;	
+		}
+
+	}
+
+	mU = target.mU;
+	mV = target.mV;
+	mW = target.mW;
+}
+
 vec3 MACGrid::getOmegaVector( int i, int j, int k )
 {
 	double two_cell_widths = 2.0f * theCellSize;
@@ -417,6 +488,7 @@ void MACGrid::addExternalForces(double dt)
 {
    computeBouyancy(dt);
    computeVorticityConfinement(dt);
+   //computeViscosityForce(dt);
 }
 
 void MACGrid::project( double dt )
