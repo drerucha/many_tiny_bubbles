@@ -137,6 +137,15 @@ void MACGrid::updateSources()
 	//mD( 2, 4, 0 ) = 15;
 }
 
+void MACGrid::generateBubbles()
+{
+	vec3 position(theDim[MACGrid::X] * theCellSize / 2.0f, theCellSize, theCellSize / 2.0f);
+
+	//bubbleData.m_positions.push_back(position);
+	bubblePos.push_back(position);
+
+}
+
 void MACGrid::advectVelocity(double dt)
 {
     // TODO: compute new velocities and store in target
@@ -300,6 +309,30 @@ void MACGrid::advectDensity( double dt )
 	}
 	mD = target.mD;
 }
+
+void MACGrid::advectBubbles( double dt )
+{
+	int i = 0;
+	for(std::vector<vec3>::iterator iter = bubblePos.begin(); iter != bubblePos.end(); ++iter)
+	{
+		vec3 position = bubblePos[i];
+		vec3 velocity = getVelocity(position);
+		position += dt * velocity;
+
+		//particle goes outside the container
+		if(position[0] < 0 || position[0] > theDim[MACGrid::X] * theCellSize
+		|| position[1] < 0 || position[1] > theDim[MACGrid::Y] * theCellSize
+		|| position[2] < 0 || position[2] > theDim[MACGrid::Z] * theCellSize)
+		{
+			bubblePos.erase(iter);
+		}
+		else
+			bubblePos[i] = position;
+
+		i++;
+	}
+}
+
 
 void MACGrid::computeBouyancy( double dt )
 {
@@ -765,6 +798,21 @@ void MACGrid::setUpAMatrix() {
 		// Set the diagonal:
 		AMatrix.diag(i,j,k) = numFluidNeighbors;
 	}
+}
+
+float* MACGrid::getBubblePosition(int* size)
+{
+	float* bubblePositionArray = new float[bubblePos.size() * 3];
+	*size = bubblePos.size();
+	for(int i = 0; i < bubblePos.size(); i++)
+	{
+		vec3 position = bubblePos[i];
+		bubblePositionArray[i * 3] = position[0];
+		bubblePositionArray[i * 3 + 1] = position[1];
+		bubblePositionArray[i * 3 + 2] = position[2];
+	}
+
+	return bubblePositionArray;
 }
 
 
