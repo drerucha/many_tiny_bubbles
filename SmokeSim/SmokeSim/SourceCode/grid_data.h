@@ -41,6 +41,7 @@ public:
    // outside of our grid dimensions
    virtual double interpolate(const vec3& pt);
 
+   virtual double QERT(double valueM1, double value, double valueP1, double valueP2, double t);
    // Access underlying data structure (for use with other UBLAS objects)
    std::vector<double>& data();
 

@@ -43,7 +43,7 @@ bool MACGrid::theDisplayVel = false;
 const double FLUID_DENSITY = 1.0f;
 const double INITIAL_TEMPERATURE = 0.0f;
 const double PARTICLE_MASS = 1.0f;
-const double FLUID_VISCOSITY = 1.5f;
+const double FLUID_VISCOSITY = 3.5f;
 
 MACGrid::MACGrid()
 {
@@ -52,12 +52,16 @@ MACGrid::MACGrid()
 
 MACGrid::MACGrid(const MACGrid& orig)
 {
-   mU = orig.mU;
-   mV = orig.mV;
-   mW = orig.mW;
-   mP = orig.mP;
-   mD = orig.mD;
-   mT = orig.mT;
+	mU = orig.mU;
+	mV = orig.mV;
+	mW = orig.mW;
+	mP = orig.mP;
+	mD = orig.mD;
+	mT = orig.mT;
+	mTemp = orig.mTemp;
+	mConfForceX = orig.mConfForceX;
+	mConfForceY = orig.mConfForceY;
+	mConfForceZ = orig.mConfForceZ;
 }
 
 MACGrid& MACGrid::operator=(const MACGrid& orig)
@@ -91,12 +95,11 @@ void MACGrid::reset()
 	mP.initialize();
 	mD.initialize();
 	mT.initialize( INITIAL_TEMPERATURE );
-   	mTemp.initialize();
+	mTemp.initialize();
 	mConfForceX.initialize();
 	mConfForceY.initialize();
 	mConfForceZ.initialize();
-
-   setUpAMatrix();
+	setUpAMatrix();
 }
 
 void MACGrid::initialize()
@@ -111,37 +114,16 @@ void MACGrid::updateSources()
 	//mP( 0, 0, 0 ) = 1.0;
 	mT( 4, 1 ,0 ) = 280.0f;
 	mD( 4, 1, 0 ) = 1.0f;
-	//mU(0, 0, 0) = 1.0;
 	mV( 4, 1, 0 ) = 1.0f;
+	//mU(0, 0, 0) = 1.0;
+	//mU( 1, 8, 0 ) = 2.0f;
 	//mV( 4, 8, 0 ) = -1.0f;
-
-	//mW(0, 0, 0) = 1.0;
-
-	//mU( 1, 0, 0 ) = 1.0f;
-
-
-	//mD( 0, 0, 0 ) = 1.0;
-	//mD( 1, 0, 0 ) = 2;
-
-	//mD( 0, 1, 0 ) = 3;
-	//mD( 1, 1, 0 ) = 4;
-
-	//mD( 0, 2, 0 ) = 5;
-	//mD( 1, 2, 0 ) = 6;
-
-	//mD( 0, 3, 0 ) = 7;
-	//mD( 1, 3, 0 ) = 8;
-
-
-	//mD( 1, 4, 0 ) = 14;
-	//mD( 2, 4, 0 ) = 15;
 }
 
 void MACGrid::generateBubbles()
 {
 	vec3 position(theDim[MACGrid::X] * theCellSize / 2.0f, theCellSize, theCellSize / 2.0f);
 
-	//bubbleData.m_positions.push_back(position);
 	bubblePos.push_back(position);
 
 }
@@ -333,13 +315,12 @@ void MACGrid::advectBubbles( double dt )
 	}
 }
 
-
 void MACGrid::computeBouyancy( double dt )
 {
 	// TODO: calculate bouyancy and store in target
 	// TODO: tune alpha and beta parameters
 
-	double alpha = 2.0f;
+	double alpha = 0.5f;
 	double beta = 0.01f;
 	double ambient_temp = 270.0f;
 
@@ -520,7 +501,7 @@ vec3 MACGrid::getOmegaVector( int i, int j, int k )
 void MACGrid::addExternalForces(double dt)
 {
    computeBouyancy(dt);
-   computeVorticityConfinement(dt);
+   //computeVorticityConfinement(dt);
    //computeViscosityForce(dt);
 }
 
@@ -539,6 +520,9 @@ void MACGrid::project( double dt )
 
 	// pressure coefficient matrix
 	GridDataMatrix A;
+
+
+	//setUpAMatrix();
 
 	// d is divergence vector; p is pressure vector
 	GridData d, p;
@@ -819,8 +803,6 @@ float* MACGrid::getBubblePosition(int* size)
 
 
 
-
-
 /////////////////////////////////////////////////////////////////////
 
 bool MACGrid::conjugateGradient(const GridDataMatrix & A, GridData & p, const GridData & d, int maxIterations, double tolerance) {
@@ -832,10 +814,46 @@ bool MACGrid::conjugateGradient(const GridDataMatrix & A, GridData & p, const Gr
 
 	GridData r = d; // Residual vector.
 
-	GridData z; z.initialize();
+	GridData z; 
+	z.initialize();
+
 	// TODO: Apply a preconditioner here.
+	GridData mPrecon;
+	mPrecon.initialize();
+	GridData mQ;
+	mQ.initialize();
+
+	double torque = 0.9;
+
+	FOR_EACH_CELL
+	{
+		double E_i_j_k = A.diag(i,j,k) - pow(A.plusI(i-1,j,k) * mPrecon(i-1,j,k), 2)
+									   - pow(A.plusJ(i,j-1,k) * mPrecon(i,j-1,k), 2)
+									   - pow(A.plusK(i,j,k-1) * mPrecon(i,j,k-1), 2)
+									   - torque * ( A.plusI(i-1,j,k) * (A.plusJ(i-1,j,k) + A.plusK(i-1,j,k)) * pow(mPrecon(i-1,j,k), 2) 
+									              + A.plusJ(i,j-1,k) * (A.plusI(i,j-1,k) + A.plusK(i,j-1,k)) * pow(mPrecon(i,j-1,k), 2) 
+												  + A.plusK(i,j,k-1) * (A.plusI(i,j,k-1) + A.plusJ(i,j,k-1)) * pow(mPrecon(i,j,k-1), 2)); 
+		mPrecon(i,j,k) = 1 / sqrt(E_i_j_k + pow(0.1, 30));
+	}
+
+	FOR_EACH_CELL
+	{
+		double t = r(i,j,k) - A.plusI(i-1,j,k) * mPrecon(i-1,j,k) * mQ(i-1,j,k)
+							- A.plusJ(i,j-1,k) * mPrecon(i,j-1,k) * mQ(i,j-1,k)
+							- A.plusK(i,j,k-1) * mPrecon(i,j,k-1) * mQ(i,j,k-1);
+		mQ(i,j,k) = t * mPrecon(i,j,k);
+	}
+
+	FOR_EACH_CELL_REVERSE
+	{
+		double t = mQ(i,j,k) - A.plusI(i,j,k) * mPrecon(i,j,k) * z(i+1,j,k)
+							 - A.plusJ(i,j,k) * mPrecon(i,j,k) * z(i,j+1,k)
+							 - A.plusK(i,j,k) * mPrecon(i,j,k) * z(i,j,k+1);
+		z(i,j,k) = t * mPrecon(i,j,k);
+	}
+
 	// For now, just bypass the preconditioner:
-	z = r;
+	//z = r;
 
 	GridData s = z; // Search vector;
 
@@ -863,8 +881,34 @@ bool MACGrid::conjugateGradient(const GridDataMatrix & A, GridData & p, const Gr
 		}
 
 		// TODO: Apply a preconditioner here.
-		// For now, just bypass the preconditioner:
-		z = r;
+		//FOR_EACH_CELL
+		//{
+		//	double E_i_j_k = A.diag(i,j,k) - pow(A.plusI(i-1,j,k) * mPrecon(i-1,j,k), 2)
+		//								   - pow(A.plusJ(i,j-1,k) * mPrecon(i,j-1,k), 2)
+		//								   - pow(A.plusK(i,j,k-1) * mPrecon(i,j,k-1), 2)
+		//								   - torque * ( A.plusI(i-1,j,k) * (A.plusJ(i-1,j,k) + A.plusK(i-1,j,k)) * pow(mPrecon(i-1,j,k), 2) 
+		//											  + A.plusJ(i,j-1,k) * (A.plusI(i,j-1,k) + A.plusK(i,j-1,k)) * pow(mPrecon(i,j-1,k), 2) 
+		//											  + A.plusK(i,j,k-1) * (A.plusI(i,j,k-1) + A.plusJ(i,j,k-1)) * pow(mPrecon(i,j,k-1), 2)); 
+		//	mPrecon(i,j,k) = 1 / sqrt(E_i_j_k + pow(0.1, 30));
+		//}
+
+		FOR_EACH_CELL
+		{
+			double t = r(i,j,k) - A.plusI(i-1,j,k) * mPrecon(i-1,j,k) * mQ(i-1,j,k)
+								- A.plusJ(i,j-1,k) * mPrecon(i,j-1,k) * mQ(i,j-1,k)
+								- A.plusK(i,j,k-1) * mPrecon(i,j,k-1) * mQ(i,j,k-1);
+			mQ(i,j,k) = t * mPrecon(i,j,k);
+		}
+
+		FOR_EACH_CELL_REVERSE
+		{
+			double t = mQ(i,j,k) - A.plusI(i,j,k) * mPrecon(i,j,k) * z(i+1,j,k)
+								 - A.plusJ(i,j,k) * mPrecon(i,j,k) * z(i,j+1,k)
+								 - A.plusK(i,j,k) * mPrecon(i,j,k) * z(i,j,k+1);
+			z(i,j,k) = t * mPrecon(i,j,k);
+		}
+		 //For now, just bypass the preconditioner:
+		//z = r;
 
 		double sigmaNew = dotProduct(z, r);
 
