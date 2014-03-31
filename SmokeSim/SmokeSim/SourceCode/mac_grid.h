@@ -9,6 +9,7 @@
 #include "vec.h"
 #include "grid_data.h"
 #include "grid_data_matrix.h"
+#include "Bubbles.h"
 
 class Camera;
 
@@ -30,6 +31,8 @@ public:
 	void project(double dt);
 	void advectTemperature(double dt);
 	void advectDensity(double dt);
+	void advectBubbles(double dt);
+	void generateBubbles();
 
 protected:
 
@@ -93,6 +96,9 @@ protected:
 	// The A matrix:
 	GridDataMatrix AMatrix;
 
+	std::vector<vec3> bubblePos;
+	Bubbles bubbleData;
+
 public:
 
 	enum RenderMode { CUBES, SHEETS };
@@ -101,7 +107,7 @@ public:
 	
 	// Saves smoke in CIS 460 volumetric format:
 	void saveSmoke(const char* fileName);
-
+	float* getBubblePosition(int* size);
 };
 
 #endif
