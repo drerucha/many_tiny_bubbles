@@ -37,6 +37,8 @@ const bool VISCOSITY_FORCE = false;
 const double BUOYANCY_ALPHA = 0.5f;
 const double BUOYANCY_BETA = 0.01f;
 
-
 // to bypass preconditioner in MACGrid::conjugateGradient() method
 const bool USE_PRECONDITIONER = true;
+
+// to bypass "Visual Simulation of Smoke" cubic interpolation method in GridData::interpolate()
+const bool USE_CUBIC_INTERPOLATION = true;

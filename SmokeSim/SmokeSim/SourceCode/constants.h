@@ -4,7 +4,6 @@
 #define CONSTANTS_H
 
 
-
 #define LERP(a,b,t) (1-t)*a + t*b
 
 
@@ -37,5 +36,8 @@ extern const double BUOYANCY_BETA;
 
 // to bypass preconditioner in MACGrid::conjugateGradient() method
 extern const bool USE_PRECONDITIONER;
+
+// to bypass "Visual Simulation of Smoke" cubic interpolation method in GridData::interpolate()
+extern const bool USE_CUBIC_INTERPOLATION;
 
 #endif
