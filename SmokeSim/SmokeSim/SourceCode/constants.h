@@ -14,7 +14,28 @@ extern const int theMillisecondsPerFrame;
 extern const int theDim[3];
 extern const double theCellSize;
 
-// TODO: add constants for dispersed bubble simulation
+extern const double AMBIENT_TEMP;
 
+// sources
+extern const double SOURCE_DENSITY;
+extern const double SOURCE_TEMPERATURE;
+extern const double SOURCE_VELOCITY;
+
+extern const double FLUID_DENSITY;
+extern const double INITIAL_TEMPERATURE;
+extern const double PARTICLE_MASS;
+extern const double FLUID_VISCOSITY;
+
+// external forces
+extern const bool BUOYANCY_FORCE;
+extern const bool VORTICITY_CONFINEMENT_FORCE;
+extern const bool VISCOSITY_FORCE;
+
+// buoyancy force
+extern const double BUOYANCY_ALPHA;
+extern const double BUOYANCY_BETA;
+
+// to bypass preconditioner in MACGrid::conjugateGradient() method
+extern const bool USE_PRECONDITIONER;
 
 #endif

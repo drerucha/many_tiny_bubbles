@@ -13,9 +13,11 @@
 #include <fstream>
 
 
-// Globals:
-MACGrid target;
+////////////////////////////////////////////////////
+// globals
+////////////////////////////////////////////////////
 
+MACGrid target;
 
 // NOTE: x -> cols, z -> rows, y -> stacks
 MACGrid::RenderMode MACGrid::theRenderMode = SHEETS;
@@ -36,21 +38,20 @@ bool MACGrid::theDisplayVel = false;
       for(int j = 0; j < theDim[MACGrid::Y]+1; j++) \
          for(int i = 0; i < theDim[MACGrid::X]+1; i++) 
 
-#define UNIT_X vec3( 1.0f, 0.0f, 0.0f )
-#define UNIT_Y vec3( 0.0f, 1.0f, 0.0f )
-#define UNIT_Z vec3( 0.0f, 0.0f, 1.0f )
 
-const double FLUID_DENSITY = 1.0f;
-const double INITIAL_TEMPERATURE = 0.0f;
-const double PARTICLE_MASS = 1.0f;
-const double FLUID_VISCOSITY = 3.5f;
-
+////////////////////////////////////////////////////
+// default constructor
+////////////////////////////////////////////////////
 MACGrid::MACGrid()
 {
    initialize();
 }
 
-MACGrid::MACGrid(const MACGrid& orig)
+
+////////////////////////////////////////////////////
+// copy constructor
+////////////////////////////////////////////////////
+MACGrid::MACGrid( const MACGrid& orig )
 {
 	mU = orig.mU;
 	mV = orig.mV;
@@ -64,7 +65,11 @@ MACGrid::MACGrid(const MACGrid& orig)
 	mConfForceZ = orig.mConfForceZ;
 }
 
-MACGrid& MACGrid::operator=(const MACGrid& orig)
+
+////////////////////////////////////////////////////
+// assignment operator
+////////////////////////////////////////////////////
+MACGrid& MACGrid::operator=( const MACGrid& orig )
 {
 	if (&orig == this)
 	{
@@ -83,10 +88,18 @@ MACGrid& MACGrid::operator=(const MACGrid& orig)
    return *this;
 }
 
+
+////////////////////////////////////////////////////
+// destructor
+////////////////////////////////////////////////////
 MACGrid::~MACGrid()
 {
 }
 
+
+////////////////////////////////////////////////////
+// reset()
+////////////////////////////////////////////////////
 void MACGrid::reset()
 {
 	mU.initialize();
@@ -102,53 +115,94 @@ void MACGrid::reset()
 	setUpAMatrix();
 }
 
+
+////////////////////////////////////////////////////
+// initialize()
+////////////////////////////////////////////////////
 void MACGrid::initialize()
 {
    reset();
 }
 
+
+////////////////////////////////////////////////////
+// updateSources()
+// set mT, mD, mV to "push" smoke into the container
+////////////////////////////////////////////////////
 void MACGrid::updateSources()
 {
-    // TODO: set initial values for density, temperature, and velocity
+	// TODO: create intuitive constants to control size and velocity of sources
 
-	//mP( 0, 0, 0 ) = 1.0;
-	mT( 4, 1 ,0 ) = 280.0f;
-	mD( 4, 1, 0 ) = 1.0f;
-	mV( 4, 1, 0 ) = 1.0f;
-	//mU(0, 0, 0) = 1.0;
-	//mU( 1, 8, 0 ) = 2.0f;
-	//mV( 4, 8, 0 ) = -1.0f;
+	// 1x1 source in middle of 9x1 x/z grid
+
+	mT( 4, 0, 0 ) = SOURCE_TEMPERATURE;
+	mD( 4, 0, 0 ) = SOURCE_DENSITY;
+	mV( 4, 1, 0 ) = SOURCE_VELOCITY;
+
+
+	// 3x3 source in middle of 30x30 x/z grid
+
+	//mT( 14, 0, 14 ) = 280.0f;
+	//mD( 14, 0, 14 ) = 1.0f;
+	//mV( 14, 1, 14 ) = 2.0f;
+
+	//mT( 14, 0, 15 ) = 280.0f;
+	//mD( 14, 0, 15 ) = 1.0f;
+	//mV( 14, 1, 15 ) = 2.0f;
+
+	//mT( 14, 0, 16 ) = 280.0f;
+	//mD( 14, 0, 16 ) = 1.0f;
+	//mV( 14, 1, 16 ) = 2.0f;
+
+	//mT( 15, 0, 14 ) = 280.0f;
+	//mD( 15, 0, 14 ) = 1.0f;
+	//mV( 15, 1, 14 ) = 2.0f;
+
+	//mT( 15, 0, 15 ) = 280.0f;
+	//mD( 15, 0, 15 ) = 1.0f;
+	//mV( 15, 1, 15 ) = 2.0f;
+
+	//mT( 15, 0, 16 ) = 280.0f;
+	//mD( 15, 0, 16 ) = 1.0f;
+	//mV( 15, 1, 16 ) = 2.0f;
+
+	//mT( 16, 0, 14 ) = 280.0f;
+	//mD( 16, 0, 14 ) = 1.0f;
+	//mV( 16, 1, 14 ) = 2.0f;
+
+	//mT( 16, 0, 15 ) = 280.0f;
+	//mD( 16, 0, 15 ) = 1.0f;
+	//mV( 16, 1, 15 ) = 2.0f;
+
+	//mT( 16, 0, 16 ) = 280.0f;
+	//mD( 16, 0, 16 ) = 1.0f;
+	//mV( 16, 1, 16 ) = 2.0f;
 }
 
+
+////////////////////////////////////////////////////
+// generateBubbles()
+////////////////////////////////////////////////////
 void MACGrid::generateBubbles()
 {
-	vec3 position(theDim[MACGrid::X] * theCellSize / 2.0f, theCellSize, theCellSize / 2.0f);
-
-	bubblePos.push_back(position);
-
+	vec3 position( theDim[MACGrid::X] * theCellSize / 2.0f, theCellSize, theCellSize / 2.0f );
+	bubblePos.push_back( position );
 }
 
-void MACGrid::advectVelocity(double dt)
+
+////////////////////////////////////////////////////
+// advectVelocity()
+// use traceback method to update velocities at each cell face
+////////////////////////////////////////////////////
+void MACGrid::advectVelocity( double dt )
 {
-    // TODO: compute new velocities and store in target
-
-
-	// loops through every MacGrid face; defines i, j, k
+	// loop through every MacGrid face
+	// i, j, k are defined by FOR_EACH_FACE constant
 	FOR_EACH_FACE {
 		// mU = GridDataX, mV = GridDataY, mW = GridDataZ
 		double velU = mU( i, j, k );
 		double velV = mV( i, j, k );
 		double velW = mW( i, j, k );
-
-		// old, seemingly incorrect, method
-		// compute velocity gradient - rate of change in each component direction
-		//vec3 velocityGradient( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize,
-		//					   ( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize,
-		//					   ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
-		// solve for advection
-		//velU = velU + ( dt * -1.0f * velU * Dot( UNIT_X, velocityGradient ) );
-		//velV = velV + ( dt * -1.0f * velV * Dot( UNIT_Y, velocityGradient ) );
-		//velW = velW + ( dt * -1.0f * velW * Dot( UNIT_Z, velocityGradient ) );
 
 		// compute face center positions
 		vec3 centerPosition = getCenter( i, j, k );
@@ -257,75 +311,82 @@ void MACGrid::advectVelocity(double dt)
     mW = target.mW;
 }
 
+
+////////////////////////////////////////////////////
+// advectTemperature()
+// use traceback method to update temperatures at each cell center
+////////////////////////////////////////////////////
 void MACGrid::advectTemperature( double dt )
 {
-    // TODO: calculate new temp and store in target
-
-
 	FOR_EACH_CELL {
 		// velocity at cell center
-		vec3 velocity( (mU( i, j, k ) + mU( i+1, j, k ))/2.0f, (mV( i, j, k ) + mV( i, j+1, k ))/2.0f, (mW( i, j, k )+mW( i, j, k+1 ))/2.0f );
+		vec3 velocity( ( mU( i, j, k ) + mU( i+1, j, k ) ) / 2.0f,
+					   ( mV( i, j, k ) + mV( i, j+1, k ) ) / 2.0f,
+					   ( mW( i, j, k ) + mW( i, j, k+1 ) ) / 2.0f );
 
 		// trace back particle position using known velocity
 		vec3 pos = getCenter( i, j, k );
 		pos -= dt * velocity;
 
 		// interpolate temperature for passed-in position, and store in target
-		target.mT( i,j,k ) = getTemperature( pos );
+		target.mT( i, j, k ) = getTemperature( pos );
 	}
 
 	// save result to object
 	mT = target.mT;
 }
 
+
+////////////////////////////////////////////////////
+// advectDensity()
+// use traceback method to update temperatures at each cell center
+////////////////////////////////////////////////////
 void MACGrid::advectDensity( double dt )
 {
-    // TODO: calculate new densitities and store in target
-
 	// use an identical trace back method to the one used in MACGrid::advectTemperature()
 	FOR_EACH_CELL {
-		vec3 velocity( (mU( i, j, k ) + mU( i+1, j, k ))/2.0f, (mV( i, j, k ) + mV( i, j+1, k ))/2.0f, (mW( i, j, k )+mW( i, j, k+1 ))/2.0f );
-		vec3 pos = getCenter(i, j, k);
+		vec3 velocity( ( mU( i, j, k ) + mU( i+1, j, k ) ) / 2.0f,
+					   ( mV( i, j, k ) + mV( i, j+1, k ) ) / 2.0f,
+					   ( mW( i, j, k ) + mW( i, j, k+1 ) ) / 2.0f );
+
+		vec3 pos = getCenter( i, j, k );
 		pos -= dt * velocity;
-		target.mD(i,j,k) = getDensity(pos);
+		target.mD( i, j, k ) = getDensity( pos );
 	}
+
 	mD = target.mD;
 }
 
-void MACGrid::advectBubbles( double dt )
+
+////////////////////////////////////////////////////
+// addExternalForces()
+////////////////////////////////////////////////////
+void MACGrid::addExternalForces( double dt )
 {
-	int i = 0;
-	for(std::vector<vec3>::iterator iter = bubblePos.begin(); iter != bubblePos.end(); ++iter)
-	{
-		vec3 position = bubblePos[i];
-		vec3 velocity = getVelocity(position);
-		position += dt * velocity;
+	// to activate/deactivate these external forces, set the appropriate constants in constants.cpp
 
-		//particle goes outside the container
-		if(position[0] < 0 || position[0] > theDim[MACGrid::X] * theCellSize
-		|| position[1] < 0 || position[1] > theDim[MACGrid::Y] * theCellSize
-		|| position[2] < 0 || position[2] > theDim[MACGrid::Z] * theCellSize)
-		{
-			bubblePos.erase(iter);
-		}
-		else
-			bubblePos[i] = position;
-
-		i++;
+	if ( BUOYANCY_FORCE ) {
+		computeBouyancy( dt );
+	}
+	if ( VORTICITY_CONFINEMENT_FORCE ) {
+		computeVorticityConfinement( dt );
+	}
+	if ( VISCOSITY_FORCE ) {
+		computeViscosityForce( dt );
 	}
 }
 
+
+////////////////////////////////////////////////////
+// computeBouyancy()
+// add external force influenced by liquid's temperature
+////////////////////////////////////////////////////
 void MACGrid::computeBouyancy( double dt )
 {
-	// TODO: calculate bouyancy and store in target
-	// TODO: tune alpha and beta parameters
-
-	double alpha = 0.5f;
-	double beta = 0.01f;
-	double ambient_temp = 270.0f;
+	// set BUOYANCY_ALPHA, BUOYANCY_BETA, AMBIENT_TEMP in constants.cpp
 
 	FOR_EACH_CELL {
-		target.mTemp( i, j, k ) = -1.0f * alpha * mD( i, j, k ) + beta * ( mT( i, j, k )  - ambient_temp );
+		target.mTemp( i, j, k ) = -1.0f * BUOYANCY_ALPHA * mD( i, j, k ) + BUOYANCY_BETA * ( mT( i, j, k )  - AMBIENT_TEMP );
 	}
 
 	FOR_EACH_CELL {
@@ -345,21 +406,21 @@ void MACGrid::computeBouyancy( double dt )
 			// perform explicit Euler integration to update existing velocity with applied force
 			// v' = v + at
 			target.mV( i, j, k ) = mV( i, j, k ) + dt * acceleration;
-
-			// this is incorrect
-			//target.mV( i, j, k ) = mV( i, j, k ) + ( target.mTemp( i, j, k ) + target.mTemp( i, j-1, k ) ) / 2.0f;
 		}
 	}
 
 	mV = target.mV;
 }
 
+
+////////////////////////////////////////////////////
+// computeVorticityConfinement()
+// add external force to preserve localized vortices
+////////////////////////////////////////////////////
 void MACGrid::computeVorticityConfinement( double dt )
 {
-	// TODO: calculate vorticity confinement forces
-
-
-	double epsilon = 1.0f;
+	//double epsilon = 1.0f;
+	double epsilon = 0.1f;
 	double two_cell_widths = 2.0f * theCellSize;
 	double very_small = pow( 10.0f, -20.0f );
 
@@ -370,6 +431,7 @@ void MACGrid::computeVorticityConfinement( double dt )
 		// index out of bounds when j == 0, 1, theDim[MACGrid::Y]
 		// index out of bounds when k == 0, 1, theDim[MACGrid::Z]
 		// velocities return 0 by default for these cases
+
 		vec3 omegaGradient( ( getOmegaVector( i+1, j, k ).Length() - getOmegaVector( i-1, j, k ).Length() ) / two_cell_widths,
 							( getOmegaVector( i, j+1, k ).Length() - getOmegaVector( i, j-1, k ).Length() ) / two_cell_widths,
 							( getOmegaVector( i, j, k+1 ).Length() - getOmegaVector( i, j, k-1 ).Length() ) / two_cell_widths );
@@ -383,8 +445,6 @@ void MACGrid::computeVorticityConfinement( double dt )
 		target.mConfForceY(i, j, k) = confinement[1];
 		target.mConfForceZ(i, j, k) = confinement[2];
 	}
-	
-	// TODO: ask how to apply computed forces to velocity field
 
 	// take vorticity confinement forces computed at cell centers and approximate at faces for velocity field 
 	FOR_EACH_CELL {
@@ -419,64 +479,99 @@ void MACGrid::computeVorticityConfinement( double dt )
 	mW = target.mW;
 }
 
-void MACGrid::computeViscosityForce(double dt)
+
+////////////////////////////////////////////////////
+// getOmegaVector()
+// helper method for computing vorticity confinement
+////////////////////////////////////////////////////
+vec3 MACGrid::getOmegaVector( int i, int j, int k )
 {
-	FOR_EACH_CELL 
-	{
-		//velocity difference between two grids
+	double half_cell_width = 1.0f / ( 2.0f * theCellSize );
 
-		double velDiff_IPlus1_I  = mU( i+1, j, k ) - mU( i, j, k );
-		double velDiff_I_IMinus1 = mU( i, j, k ) - mU( i-1, j, k );
-		double velDiff_JPlus1_J  = mU( i, j+1, k ) - mU( i, j, k );
-		double velDiff_J_JMinus1 = mU( i, j, k ) - mU( i, j-1, k );
-		double velDiff_KPlus1_K  = mU( i, j, k+1 ) - mU( i, j, k );
-		double velDiff_K_KMinus1 = mU( i, j, k ) - mU( i, j, k-1 );
+	// return omega vector
+	return vec3( ( mW( i, j+1, k ) - mW( i, j-1, k ) ) * half_cell_width - ( mV( i, j, k+1 ) - mV( i, j, k-1 ) ) * half_cell_width,
+				 ( mU( i, j, k+1 ) - mU( i, j, k-1 ) ) * half_cell_width - ( mW( i+1, j, k ) - mW( i-1, j, k ) ) * half_cell_width,
+				 ( mV( i+1, j, k ) - mV( i-1, j, k ) ) * half_cell_width - ( mU( i, j+1, k ) - mU( i, j-1, k ) ) * half_cell_width );
+}
 
-		if( i > 0 )
+
+////////////////////////////////////////////////////
+// computeViscosityForce()
+// add external force to control fluid's thickness (higher viscosity == more like honey than water)
+////////////////////////////////////////////////////
+void MACGrid::computeViscosityForce( double dt )
+{
+	FOR_EACH_CELL {
+		// compute velocity differences between adjacent cells
+		double velDiff_I_IMinus1, velDiff_IPlus1_I,
+			   velDiff_J_JMinus1, velDiff_JPlus1_J,
+			   velDiff_K_KMinus1, velDiff_KPlus1_K;
+
+		// velDiff_I_IMinus1
+		if ( i > 0 ) {
 			velDiff_I_IMinus1 = mU( i, j, k ) - mU( i-1, j, k );
-		else 
+		}
+		else {
 			velDiff_I_IMinus1 = 0.0f;
+		}
 
-		if( i < theDim[MACGrid::X])
+		// velDiff_IPlus1_I
+		if ( i < theDim[MACGrid::X] ) {
 			velDiff_IPlus1_I  = mU( i+1, j, k ) - mU( i, j, k );
-		else
+		}
+		else {
 			velDiff_IPlus1_I = 0.0f;
+		}
 
-		if( j > 0 )
+		// velDiff_J_JMinus1
+		if ( j > 0 ) {
 			velDiff_J_JMinus1  = mV( i, j, k ) - mV( i, j-1, k );
-		else
+		}
+		else {
 			velDiff_J_JMinus1  = 0.0f;
+		}
 
-		if( i < theDim[MACGrid::Y])
+		// velDiff_JPlus1_J
+		if ( i < theDim[MACGrid::Y] ) {
 			velDiff_JPlus1_J  = mV( i, j+1, k ) - mV( i, j, k );
-		else
+		}
+		else {
 			velDiff_JPlus1_J = 0.0f;
+		}
 
-		if( k > 0 )
+		// velDiff_K_KMinus1
+		if ( k > 0 ) {
 			velDiff_K_KMinus1 = mW( i, j, k ) - mW( i, j, k-1 );
-		else
+		}
+		else {
 			velDiff_K_KMinus1 = 0.0f;
+		}
 
-		if( k < theDim[MACGrid::Z] )
+		// velDiff_KPlus1_K
+		if ( k < theDim[MACGrid::Z] ) {
 			velDiff_KPlus1_K = mW( i, j, k+1 ) - mW( i, j, k );
-		else
+		}
+		else {
 			velDiff_KPlus1_K = 0.0f;
+		}
+
+		double one_over_cell_width_squared = 1.0f / ( theCellSize * theCellSize );
 
 		// acceleration = force on particle / mass of particle
 		// finally, perform explicit Euler integration to update existing velocity with applied force
 		// v' = v + at
 		if ( i != 0 ) {
-			double viscosityForceX = FLUID_VISCOSITY * (velDiff_IPlus1_I - velDiff_I_IMinus1) / theCellSize / theCellSize;
+			double viscosityForceX = FLUID_VISCOSITY * ( velDiff_IPlus1_I - velDiff_I_IMinus1 ) * one_over_cell_width_squared;
 			double acceleration_x = viscosityForceX / PARTICLE_MASS;
 			target.mU( i, j, k ) = mU( i, j, k ) + dt * acceleration_x;
 		}
 		if ( j != 0 ) {
-			double viscosityForceY = FLUID_VISCOSITY * (velDiff_JPlus1_J - velDiff_J_JMinus1) / theCellSize / theCellSize;
+			double viscosityForceY = FLUID_VISCOSITY * ( velDiff_JPlus1_J - velDiff_J_JMinus1 ) * one_over_cell_width_squared;
 			double acceleration_y = viscosityForceY / PARTICLE_MASS;
 			target.mV( i, j, k ) = mV( i, j, k ) + dt * acceleration_y;
 		}
 		if ( k != 0 ) {
-			double viscosityForceZ = FLUID_VISCOSITY * (velDiff_KPlus1_K - velDiff_K_KMinus1) / theCellSize / theCellSize;
+			double viscosityForceZ = FLUID_VISCOSITY * ( velDiff_KPlus1_K - velDiff_K_KMinus1 ) * one_over_cell_width_squared;
 			double acceleration_z = viscosityForceZ / PARTICLE_MASS;
 			target.mW( i, j, k ) = mW( i, j, k ) + dt * acceleration_z;	
 		}
@@ -488,41 +583,22 @@ void MACGrid::computeViscosityForce(double dt)
 	mW = target.mW;
 }
 
-vec3 MACGrid::getOmegaVector( int i, int j, int k )
-{
-	double two_cell_widths = 2.0f * theCellSize;
 
-	// return omega vector
-	return vec3( ( mW( i, j+1, k ) - mW( i, j-1, k ) ) / two_cell_widths - ( mV( i, j, k+1 ) - mV( i, j, k-1 ) ) / two_cell_widths,
-				 ( mU( i, j, k+1 ) - mU( i, j, k-1 ) ) / two_cell_widths - ( mW( i+1, j, k ) - mW( i-1, j, k ) ) / two_cell_widths,
-				 ( mV( i+1, j, k ) - mV( i-1, j, k ) ) / two_cell_widths - ( mU( i, j+1, k ) - mU( i, j-1, k ) ) / two_cell_widths );
-}
-
-void MACGrid::addExternalForces(double dt)
-{
-   computeBouyancy(dt);
-   //computeVorticityConfinement(dt);
-   //computeViscosityForce(dt);
-}
-
+////////////////////////////////////////////////////
+// project()
+// solve for pressure in a manner that creates a divergence free system
+////////////////////////////////////////////////////
 void MACGrid::project( double dt )
 {
-	// TODO: solve Ap = d for pressure
-
-	// TODO: IMPLEMENT assert( checkDivergence() ) AS A SANITY CHECK
-
-
 	////////////////////////////////////////////////////
 	// solve for pressure
 	////////////////////////////////////////////////////
 
 	double constant = -1.0f * theCellSize * theCellSize / dt;
 
-	// pressure coefficient matrix
-	GridDataMatrix A;
-
-
-	//setUpAMatrix();
+	// AMatrix is a MACGrid member and the pressure coefficient matrix
+	// setUpAMatrix() initializes AMatrix given the current grid structure
+	setUpAMatrix();
 
 	// d is divergence vector; p is pressure vector
 	GridData d, p;
@@ -531,68 +607,17 @@ void MACGrid::project( double dt )
 
 	FOR_EACH_CELL {
 		// fill divergence vector - ( constant * density * velocity gradient )
-		d(i, j, k) = constant * FLUID_DENSITY * ( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize + 
-												  ( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize +
-												  ( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
-
-		int num_neighbors = 6;
-		bool has_neighbor_plus_x = true, has_neighbor_plus_y = true, has_neighbor_plus_z = true;
-
-		// count neighbors, and determine whether neighbors exist along positive directions
-		if ( i <= 0 ) {
-			--num_neighbors;
-		}
-		if ( j <= 0 ) {
-			--num_neighbors;
-		}
-		if ( k <= 0 ) {
-			--num_neighbors;
-		}
-		if ( i+1 >= theDim[MACGrid::X] ) {
-			--num_neighbors;
-			has_neighbor_plus_x = false;
-		}
-		if ( j+1 >= theDim[MACGrid::Y] ) {
-			--num_neighbors;
-			has_neighbor_plus_y = false;
-		}
-		if ( k+1 >= theDim[MACGrid::Z] ) {
-			--num_neighbors;
-			has_neighbor_plus_z = false;
-		}
-
-		// set A.diag - number of neighbors the current cell has
-		A.diag( i, j, k ) = num_neighbors;
-
-		// set A.plusI - neighbor cell in positive x direction
-		if ( has_neighbor_plus_x ) {
-			A.plusI( i, j, k ) = -1.0f;
-		}
-		else {
-			A.plusI( i, j, k ) = 0.0f;
-		}
-
-		// set A.plusJ - neighbor cell in positive y direction
-		if ( has_neighbor_plus_y ) {
-			A.plusJ( i, j, k ) = -1.0f;
-		}
-		else {
-			A.plusJ( i, j, k ) = 0.0f;
-		}
-
-		// set A.plusK - neighbor cell in positive z direction
-		if ( has_neighbor_plus_z ) {
-			A.plusK( i, j, k ) = -1.0f;
-		}
-		else {
-			A.plusK( i, j, k ) = 0.0f;
-		}
+		d( i, j, k ) = constant * FLUID_DENSITY * ( ( mU( i+1, j, k ) - mU( i, j, k ) ) / theCellSize + 
+													( mV( i, j+1, k ) - mV( i, j, k ) ) / theCellSize +
+													( mW( i, j, k+1 ) - mW( i, j, k ) ) / theCellSize );
 	}
 
 	// solve pressure vector by solving system of linear equations
 	int max_num_iterations = 100;
 	double tolerance = 0.00001f;
-	conjugateGradient( A, p, d, max_num_iterations, tolerance );
+
+	// conjugateGradient method includes preconditioner
+	conjugateGradient( AMatrix, p, d, max_num_iterations, tolerance );
 
 	// store in target
 	target.mP = p;
@@ -678,18 +703,205 @@ void MACGrid::project( double dt )
 	mV = target.mV;
 	mW = target.mW;
 
-	// debug - test if system is divergence free
-	FOR_EACH_CELL {
-		double sum = (mU(i+1,j,k) - mU(i,j,k)) + 
-					 (mV(i,j+1,k) - mV(i,j,k)) +
-					 (mW(i,j,k+1) - mW(i,j,k));
-
-
-		if ( abs( sum ) > 0.01 ) {
-			bool non_divergence_free = true;
-		}
+	// debug
+	if ( !testForDivergenceFreeSystem() ) {
+		std::cout << "it appears the system is not divergence free" << std::endl;
+		std::cin.ignore();
 	}
 }
+
+
+////////////////////////////////////////////////////
+// testForDivergenceFreeSystem()
+// method used for debugging purposes
+////////////////////////////////////////////////////
+bool MACGrid::testForDivergenceFreeSystem() const
+{
+	FOR_EACH_CELL {
+		double sum = ( mU( i+1, j, k ) - mU( i,j,k ) ) + 
+					 ( mV( i, j+1, k ) - mV( i,j,k ) ) +
+					 ( mW( i, j, k+1 ) - mW( i,j,k ) );
+
+		if ( abs( sum ) > 0.01 ) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+////////////////////////////////////////////////////
+// conjugateGradient()
+// solves Ap = d for p, includes Modified Incomplete Cholesky preconditioner
+////////////////////////////////////////////////////
+bool MACGrid::conjugateGradient( const GridDataMatrix& A, GridData& p, const GridData& d, int maxIterations, double tolerance ) {
+	FOR_EACH_CELL {
+		p( i, j, k ) = 0.0; // initial guess p = 0
+	}
+
+	GridData r = d; // residual vector
+
+	GridData z; 
+	z.initialize();
+
+	GridData mPrecon;
+	mPrecon.initialize();
+
+	GridData mQ;
+	mQ.initialize();
+
+	GridData s; // search vector
+
+	// apply preconditioner
+	if ( USE_PRECONDITIONER ) {
+		applyPreconditioner( A, r, z, mPrecon, mQ, true );
+		s = z;
+	}
+	else {
+		z = r;
+		s = r;
+	}
+
+	double sigma = dotProduct( z, r );
+
+	for ( int iteration = 0; iteration < maxIterations; ++iteration ) {
+
+		double rho = sigma;
+
+		apply(A, s, z);
+
+		double alpha = rho/dotProduct(z, s);
+
+		GridData alphaTimesS; alphaTimesS.initialize();
+		multiply(alpha, s, alphaTimesS);
+		add(p, alphaTimesS, p);
+
+		GridData alphaTimesZ; alphaTimesZ.initialize();
+		multiply(alpha, z, alphaTimesZ);
+		subtract(r, alphaTimesZ, r);
+
+		if (maxMagnitude(r) <= tolerance) {
+			//PRINT_LINE("PCG converged in " << (iteration + 1) << " iterations.");
+			return true;
+		}
+
+		// apply preconditioner
+		if ( USE_PRECONDITIONER ) {
+			applyPreconditioner( A, r, z, mPrecon, mQ, false );
+		}
+		else {
+			z = r;
+		}
+
+		double sigmaNew = dotProduct( z, r );
+
+		double beta = sigmaNew / rho;
+
+		GridData betaTimesS; betaTimesS.initialize();
+		multiply(beta, s, betaTimesS);
+		add(z, betaTimesS, s);
+		//s = z + beta * s;
+
+		sigma = sigmaNew;
+	}
+
+	PRINT_LINE( "PCG didn't converge!" );
+	return false;
+}
+
+
+////////////////////////////////////////////////////
+// applyPreconditioner()
+// Modified Incomplete Cholesky preconditioner
+////////////////////////////////////////////////////
+void MACGrid::applyPreconditioner( const GridDataMatrix& A, const GridData& r, GridData& z,
+								   GridData& mPrecon, GridData& mQ, const bool& compute_mPrecon )
+{
+	// TODO: preconditioner method needs to be modified if fluid does not fill entire grid, i.e. water instead of smoke
+	// see pg 35 of Bridson's 2007 SIGGRAPH course notes
+
+	if ( compute_mPrecon ) {
+		double torque = 0.9;
+		FOR_EACH_CELL {
+			double E_i_j_k = A.diag( i, j, k ) - pow( A.plusI( i-1, j, k ) * mPrecon( i-1, j, k ), 2 )
+											   - pow( A.plusJ( i, j-1, k ) * mPrecon( i, j-1, k ), 2 )
+											   - pow( A.plusK( i, j, k-1 ) * mPrecon( i, j, k-1 ), 2 )
+											   - torque * ( A.plusI( i-1, j, k ) * ( A.plusJ( i-1, j, k ) + A.plusK( i-1, j, k ) ) * pow( mPrecon( i-1, j, k ), 2 ) 
+													+ A.plusJ( i, j-1, k ) * ( A.plusI( i, j-1, k ) + A.plusK( i, j-1, k ) ) * pow( mPrecon( i, j-1, k ), 2 ) 
+													+ A.plusK( i, j, k-1 ) * ( A.plusI( i, j, k-1 ) + A.plusJ( i, j, k-1 ) ) * pow( mPrecon( i, j, k-1 ), 2 ) ); 
+			mPrecon( i, j, k ) = 1 / sqrt( E_i_j_k + pow( 10.0f, -30 ) );
+		}
+	}
+
+	FOR_EACH_CELL {
+		double t = r( i, j, k ) - A.plusI( i-1, j, k ) * mPrecon( i-1, j, k ) * mQ( i-1, j, k )
+								- A.plusJ( i, j-1, k ) * mPrecon( i, j-1, k ) * mQ( i, j-1, k )
+								- A.plusK( i, j, k-1 ) * mPrecon( i, j, k-1 ) * mQ( i, j, k-1 );
+		mQ( i, j, k ) = t * mPrecon( i, j, k );
+	}
+
+	FOR_EACH_CELL_REVERSE {
+		double t = mQ( i, j, k ) - A.plusI( i, j, k ) * mPrecon( i, j, k ) * z( i+1, j, k )
+								 - A.plusJ( i, j, k ) * mPrecon( i, j, k ) * z( i, j+1, k )
+								 - A.plusK( i, j, k ) * mPrecon( i, j, k ) * z( i, j, k+1 );
+		z( i, j, k ) = t * mPrecon( i, j, k );
+	}
+}
+
+
+
+/*********** METHODS FOR BUBBLES ***********/
+
+
+////////////////////////////////////////////////////
+// advectBubbles()
+////////////////////////////////////////////////////
+void MACGrid::advectBubbles( double dt )
+{
+	int i = 0;
+	for(std::vector<vec3>::iterator iter = bubblePos.begin(); iter != bubblePos.end(); ++iter)
+	{
+		vec3 position = bubblePos[i];
+		vec3 velocity = getVelocity(position);
+		position += dt * velocity;
+
+		// particle goes outside the container
+		if(position[0] < 0 || position[0] > theDim[MACGrid::X] * theCellSize
+		|| position[1] < 0 || position[1] > theDim[MACGrid::Y] * theCellSize
+		|| position[2] < 0 || position[2] > theDim[MACGrid::Z] * theCellSize)
+		{
+			bubblePos.erase(iter);
+		}
+		else
+			bubblePos[i] = position;
+
+		i++;
+	}
+}
+
+
+////////////////////////////////////////////////////
+// getBubblePosition()
+////////////////////////////////////////////////////
+float* MACGrid::getBubblePosition( int *size )
+{
+	float *bubblePositionArray = new float[bubblePos.size() * 3];
+	*size = bubblePos.size();
+	for( unsigned int i = 0; i < bubblePos.size(); i++ ) {
+		vec3 position = bubblePos[i];
+		bubblePositionArray[i * 3] = position[0];
+		bubblePositionArray[i * 3 + 1] = position[1];
+		bubblePositionArray[i * 3 + 2] = position[2];
+	}
+
+	return bubblePositionArray;
+}
+
+
+
+/*********** GETTERS ***********/
+
 
 vec3 MACGrid::getVelocity(const vec3& pt)
 {
@@ -737,6 +949,12 @@ vec3 MACGrid::getCenter(int i, int j, int k)
    return vec3(x, y, z);
 }
 
+
+
+/*********** HELPER METHODS ***********/
+/*********** THE FOLLOWING METHODS WERE GIVEN TO US BY OUR INSTRUCTOR IN THE FRAMEWORK ***********/
+
+
 bool MACGrid::isValidCell(int i, int j, int k)
 {
 	if (i >= theDim[MACGrid::X] || j >= theDim[MACGrid::Y] || k >= theDim[MACGrid::Z]) {
@@ -782,149 +1000,6 @@ void MACGrid::setUpAMatrix() {
 		// Set the diagonal:
 		AMatrix.diag(i,j,k) = numFluidNeighbors;
 	}
-}
-
-float* MACGrid::getBubblePosition(int* size)
-{
-	float* bubblePositionArray = new float[bubblePos.size() * 3];
-	*size = bubblePos.size();
-	for(int i = 0; i < bubblePos.size(); i++)
-	{
-		vec3 position = bubblePos[i];
-		bubblePositionArray[i * 3] = position[0];
-		bubblePositionArray[i * 3 + 1] = position[1];
-		bubblePositionArray[i * 3 + 2] = position[2];
-	}
-
-	return bubblePositionArray;
-}
-
-
-
-
-
-/////////////////////////////////////////////////////////////////////
-
-bool MACGrid::conjugateGradient(const GridDataMatrix & A, GridData & p, const GridData & d, int maxIterations, double tolerance) {
-	// Solves Ap = d for p.
-
-	FOR_EACH_CELL {
-		p(i,j,k) = 0.0; // Initial guess p = 0.	
-	}
-
-	GridData r = d; // Residual vector.
-
-	GridData z; 
-	z.initialize();
-
-	// TODO: Apply a preconditioner here.
-	GridData mPrecon;
-	mPrecon.initialize();
-	GridData mQ;
-	mQ.initialize();
-
-	double torque = 0.9;
-
-	FOR_EACH_CELL
-	{
-		double E_i_j_k = A.diag(i,j,k) - pow(A.plusI(i-1,j,k) * mPrecon(i-1,j,k), 2)
-									   - pow(A.plusJ(i,j-1,k) * mPrecon(i,j-1,k), 2)
-									   - pow(A.plusK(i,j,k-1) * mPrecon(i,j,k-1), 2)
-									   - torque * ( A.plusI(i-1,j,k) * (A.plusJ(i-1,j,k) + A.plusK(i-1,j,k)) * pow(mPrecon(i-1,j,k), 2) 
-									              + A.plusJ(i,j-1,k) * (A.plusI(i,j-1,k) + A.plusK(i,j-1,k)) * pow(mPrecon(i,j-1,k), 2) 
-												  + A.plusK(i,j,k-1) * (A.plusI(i,j,k-1) + A.plusJ(i,j,k-1)) * pow(mPrecon(i,j,k-1), 2)); 
-		mPrecon(i,j,k) = 1 / sqrt(E_i_j_k + pow(0.1, 30));
-	}
-
-	FOR_EACH_CELL
-	{
-		double t = r(i,j,k) - A.plusI(i-1,j,k) * mPrecon(i-1,j,k) * mQ(i-1,j,k)
-							- A.plusJ(i,j-1,k) * mPrecon(i,j-1,k) * mQ(i,j-1,k)
-							- A.plusK(i,j,k-1) * mPrecon(i,j,k-1) * mQ(i,j,k-1);
-		mQ(i,j,k) = t * mPrecon(i,j,k);
-	}
-
-	FOR_EACH_CELL_REVERSE
-	{
-		double t = mQ(i,j,k) - A.plusI(i,j,k) * mPrecon(i,j,k) * z(i+1,j,k)
-							 - A.plusJ(i,j,k) * mPrecon(i,j,k) * z(i,j+1,k)
-							 - A.plusK(i,j,k) * mPrecon(i,j,k) * z(i,j,k+1);
-		z(i,j,k) = t * mPrecon(i,j,k);
-	}
-
-	// For now, just bypass the preconditioner:
-	//z = r;
-
-	GridData s = z; // Search vector;
-
-	double sigma = dotProduct(z, r);
-
-	for (int iteration = 0; iteration < maxIterations; iteration++) {
-
-		double rho = sigma;
-
-		apply(A, s, z);
-
-		double alpha = rho/dotProduct(z, s);
-
-		GridData alphaTimesS; alphaTimesS.initialize();
-		multiply(alpha, s, alphaTimesS);
-		add(p, alphaTimesS, p);
-
-		GridData alphaTimesZ; alphaTimesZ.initialize();
-		multiply(alpha, z, alphaTimesZ);
-		subtract(r, alphaTimesZ, r);
-
-		if (maxMagnitude(r) <= tolerance) {
-			//PRINT_LINE("PCG converged in " << (iteration + 1) << " iterations.");
-			return true;
-		}
-
-		// TODO: Apply a preconditioner here.
-		//FOR_EACH_CELL
-		//{
-		//	double E_i_j_k = A.diag(i,j,k) - pow(A.plusI(i-1,j,k) * mPrecon(i-1,j,k), 2)
-		//								   - pow(A.plusJ(i,j-1,k) * mPrecon(i,j-1,k), 2)
-		//								   - pow(A.plusK(i,j,k-1) * mPrecon(i,j,k-1), 2)
-		//								   - torque * ( A.plusI(i-1,j,k) * (A.plusJ(i-1,j,k) + A.plusK(i-1,j,k)) * pow(mPrecon(i-1,j,k), 2) 
-		//											  + A.plusJ(i,j-1,k) * (A.plusI(i,j-1,k) + A.plusK(i,j-1,k)) * pow(mPrecon(i,j-1,k), 2) 
-		//											  + A.plusK(i,j,k-1) * (A.plusI(i,j,k-1) + A.plusJ(i,j,k-1)) * pow(mPrecon(i,j,k-1), 2)); 
-		//	mPrecon(i,j,k) = 1 / sqrt(E_i_j_k + pow(0.1, 30));
-		//}
-
-		FOR_EACH_CELL
-		{
-			double t = r(i,j,k) - A.plusI(i-1,j,k) * mPrecon(i-1,j,k) * mQ(i-1,j,k)
-								- A.plusJ(i,j-1,k) * mPrecon(i,j-1,k) * mQ(i,j-1,k)
-								- A.plusK(i,j,k-1) * mPrecon(i,j,k-1) * mQ(i,j,k-1);
-			mQ(i,j,k) = t * mPrecon(i,j,k);
-		}
-
-		FOR_EACH_CELL_REVERSE
-		{
-			double t = mQ(i,j,k) - A.plusI(i,j,k) * mPrecon(i,j,k) * z(i+1,j,k)
-								 - A.plusJ(i,j,k) * mPrecon(i,j,k) * z(i,j+1,k)
-								 - A.plusK(i,j,k) * mPrecon(i,j,k) * z(i,j,k+1);
-			z(i,j,k) = t * mPrecon(i,j,k);
-		}
-		 //For now, just bypass the preconditioner:
-		//z = r;
-
-		double sigmaNew = dotProduct(z, r);
-
-		double beta = sigmaNew / rho;
-
-		GridData betaTimesS; betaTimesS.initialize();
-		multiply(beta, s, betaTimesS);
-		add(z, betaTimesS, s);
-		//s = z + beta * s;
-
-		sigma = sigmaNew;
-	}
-
-	PRINT_LINE( "PCG didn't converge!" );
-	return false;
-
 }
 
 double MACGrid::dotProduct(const GridData & vector1, const GridData & vector2) {

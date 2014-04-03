@@ -45,6 +45,9 @@ protected:
 	void computeViscosityForce(double dt);
 	vec3 getOmegaVector(int i, int j, int k);
 
+	// debug method
+	bool testForDivergenceFreeSystem( void ) const;
+
 	// Rendering:
 	struct Cube { vec3 pos; vec4 color; double dist; };
 	void drawWireGrid();
@@ -80,6 +83,10 @@ protected:
 	double maxMagnitude(const GridData & vector);
 	void apply(const GridDataMatrix & matrix, const GridData & vector, GridData & result);
 	bool isValidCell(int i, int j, int k);
+
+	// preconditioner
+	void applyPreconditioner( const GridDataMatrix& A, const GridData& r, GridData& z,
+							  GridData& mPrecon, GridData& mQ, const bool& compute_mPrecon );
 
 	// Fluid grid cell properties:
 	GridDataX mU; // X component of velocity, stored on X faces, size is (dimX+1)*dimY*dimZ

@@ -120,7 +120,6 @@ double GridData::QERT(double valueM1, double value, double valueP1, double value
 
 double GridData::interpolate(const vec3& pt)
 {
-
 	// TODO: Implement sharper cubic interpolation here.
 
 	vec3 pos = worldToSelf(pt);
@@ -170,13 +169,6 @@ double GridData::interpolate(const vec3& pt)
 
 	//// Z
 	//double tmp = LERP(tmp1234, tmp5678, fractz);
-
-
-
-
-
-
-
 
 
 	// Y @ low X, low Z:
@@ -247,7 +239,6 @@ double GridData::interpolate(const vec3& pt)
 	double atmp62 = (*this)(i  , j+2, k+2);
 	double atmp63 = (*this)(i+1, j+2, k+2);
 	double atmp64 = (*this)(i+2, j+2, k+2);
-
 
 	double temp_1_5_9_13_Y1  = QERT(atmp1, atmp5, atmp9,  atmp13, fracty);
 	double temp_2_6_10_14_Y2 = QERT(atmp2, atmp6, atmp10, atmp14, fracty);
